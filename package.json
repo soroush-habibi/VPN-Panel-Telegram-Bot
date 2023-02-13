@@ -1,0 +1,27 @@
+{
+  "name": "vpn-panel-telegram-bot",
+  "version": "1.0.0",
+  "description": "A bot for managing users in VPN system",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soroush-habibi/VPN-Panel-Telegram-Bot.git"
+  },
+  "keywords": [
+    "telegam",
+    "bot",
+    "vpn",
+    "node",
+    "grammy",
+    "javascript"
+  ],
+  "author": "Soroush Habibi",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/soroush-habibi/VPN-Panel-Telegram-Bot/issues"
+  },
+  "homepage": "https://github.com/soroush-habibi/VPN-Panel-Telegram-Bot#readme"
+}
