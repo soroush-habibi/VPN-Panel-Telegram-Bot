@@ -1,7 +1,15 @@
 import grammy from 'grammy';
 import user from './model/user.js';
+import db from './model/db.js';
 const bot = new grammy.Bot("5991825741:AAHV84uI9UhoX6AA3mCoCHwhMmzl_fhwbSs");
 const users = [];
+//!----------------------middlewares----------------------!//
+bot.use((ctx, next) => {
+    db.connect(async (client) => {
+        await next();
+        client.close();
+    });
+});
 //!----------------------commands----------------------!//
 bot.command("start", (ctx) => {
     let userObj = getChatObject(ctx.chat.id);
