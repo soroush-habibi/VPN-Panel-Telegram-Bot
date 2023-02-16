@@ -1,4 +1,5 @@
 import grammy from 'grammy';
+import qrImage from 'qr-image';
 
 import user from './model/user.js';
 import db from './model/db.js';
@@ -10,9 +11,14 @@ const users: user[] = [];
 //!----------------------keyboards----------------------!//
 
 const customKeyboard = new grammy.Keyboard()
+    .text("get config")
     .text("server status")
     .persistent()
     .resized();
+
+const configInlineKeyboard = new grammy.InlineKeyboard()
+    .text("text", "vmess")
+    .text("QR", "qr");
 
 //!----------------------middlewares----------------------!//
 
@@ -38,11 +44,49 @@ bot.command("start", (ctx) => {
     }
 });
 
+//!----------------------hears----------------------!//
+
 bot.hears("server status", (ctx) => {
-    if (getChatObject(ctx.chat.id)) {
+    let userObj = getChatObject(ctx.chat.id);
+    if (userObj && userObj.token) {
         ctx.reply("Ok");
     } else {
         ctx.reply("You should send your login token first.click /start");
+    }
+});
+
+bot.hears("get config", (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+    if (userObj && userObj.token) {
+        ctx.reply("Choose your config type:", { reply_markup: configInlineKeyboard });
+    } else {
+        ctx.reply("You should send your login token first.click /start");
+    }
+});
+
+//!----------------------callback queries----------------------!//
+
+bot.callbackQuery("vmess", async (ctx) => {
+    if (ctx.chat) {
+        let userObj = getChatObject(ctx.chat.id);
+        if (userObj) {
+            const buff = new Buffer(JSON.stringify(await db.getSub(userObj.token)));
+            ctx.reply("vmess://" + buff.toString("base64"));
+        }
+        await ctx.answerCallbackQuery()
+    }
+});
+
+bot.callbackQuery("qr", async (ctx) => {
+    if (ctx.chat) {
+        let userObj = getChatObject(ctx.chat.id);
+        if (userObj) {
+            const buff = new Buffer(JSON.stringify(await db.getSub(userObj.token)));
+            ctx.replyWithPhoto(new grammy.InputFile(
+                qrImage.imageSync("vmess://" + buff.toString("base64"), { type: "png" })
+            ));
+        }
+        await ctx.answerCallbackQuery()
     }
 });
 
@@ -53,7 +97,7 @@ bot.on("message", async (ctx) => {
     if (user && !user.token && ctx.message.text) {
         if (!/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(ctx.message.text.trim())) {
             ctx.reply("Token is invalid", { reply_markup: { remove_keyboard: true } });
-        } else if (!(await db.getSub(ctx.message.text.trim()))) {
+        } else if (!(await db.checkSub(ctx.message.text.trim()))) {
             ctx.reply("Can not find token in database!", { reply_markup: { remove_keyboard: true } });
         } else {
             ctx.reply("done!", { reply_markup: customKeyboard });

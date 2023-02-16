@@ -26,7 +26,9 @@
   },
   "homepage": "https://github.com/soroush-habibi/VPN-Panel-Telegram-Bot#readme",
   "dependencies": {
+    "@types/qr-image": "^3.2.5",
     "grammy": "^1.14.1",
-    "mongodb": "^5.0.1"
+    "mongodb": "^5.0.1",
+    "qr-image": "^3.2.0"
   }
 }
