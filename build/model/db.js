@@ -6,7 +6,16 @@ export default class db {
         func(client);
     }
     static async checkSub(token) {
-        const data = await this.client.db("vpnBot").collection("subs").findOne({ token: token });
+        const data = await this.client.db("vpnBot").collection("subs").findOne({ id: token });
         return data ? true : false;
+    }
+    static async getSub(token) {
+        const data = await this.client.db("vpnBot").collection("subs").findOne({ id: token }, { projection: { _id: 0 } });
+        if (data) {
+            return data;
+        }
+        else {
+            return undefined;
+        }
     }
 }

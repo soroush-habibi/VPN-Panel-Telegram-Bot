@@ -3,9 +3,16 @@ import grammy from 'grammy';
 import user from './model/user.js';
 import db from './model/db.js';
 
-const bot = new grammy.Bot("5991825741:AAHV84uI9UhoX6AA3mCoCHwhMmzl_fhwbSs");
+const bot = new grammy.Bot("5991825741:AAGzDG7sIV90vU_5vNSVmh0506gO8lNz53I");
 
 const users: user[] = [];
+
+//!----------------------keyboards----------------------!//
+
+const customKeyboard = new grammy.Keyboard()
+    .text("status")
+    .persistent()
+    .resized();
 
 //!----------------------middlewares----------------------!//
 
@@ -27,11 +34,11 @@ bot.command("start", (ctx) => {
     } else if (!userObj.token) {
         ctx.reply("Please enter your token:");
     } else if (userObj.token) {
-        ctx.reply("You have loged in");
+        ctx.reply("You have loged in", { reply_markup: customKeyboard });
     }
 });
 
-bot.command("status", (ctx) => {
+bot.hears("status", (ctx) => {
     if (getChatObject(ctx.chat.id)) {
         ctx.reply("Ok");
     } else {
@@ -44,6 +51,7 @@ bot.command("status", (ctx) => {
 bot.on("message", (ctx) => {
     const user = getChatObject(ctx.chat.id);
     if (user && !user.token && ctx.message.text) {
+        ctx.reply("done!", { reply_markup: customKeyboard });
         user.token = ctx.message.text;
     }
 });
