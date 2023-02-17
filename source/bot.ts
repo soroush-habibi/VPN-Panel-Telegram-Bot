@@ -20,10 +20,6 @@ const customKeyboard = new grammy.Keyboard()
     .persistent()
     .resized();
 
-const configInlineKeyboard = new grammy.InlineKeyboard()
-    .text("text", "vmess")
-    .text("QR", "qr");
-
 //!----------------------middlewares----------------------!//
 
 bot.use((ctx, next) => {
@@ -38,7 +34,7 @@ bot.use((ctx, next) => {
 bot.command("start", (ctx) => {
     let userObj = getChatObject(ctx.chat.id);
     if (!userObj) {
-        ctx.reply("Welcome.please enter your login token:", { reply_markup: { remove_keyboard: true } });
+        ctx.reply("Welcome please enter your login token:", { reply_markup: { remove_keyboard: true } });
         const newUser = new user(ctx.chat.id);
         users.push(newUser);
     } else if (!userObj.token) {
@@ -55,28 +51,42 @@ bot.hears("server status", (ctx) => {
     if (userObj && userObj.token) {
         ctx.reply("Ok");
     } else {
-        ctx.reply("You should send your login token first.click /start");
+        ctx.reply("You should send your login token first. click /start");
     }
 });
 
-bot.hears("get config", (ctx) => {
+bot.hears("get config", async (ctx) => {
     let userObj = getChatObject(ctx.chat.id);
     if (userObj && userObj.token) {
-        ctx.reply("Choose your config type:", { reply_markup: configInlineKeyboard });
+        const sub = await db.getSub(userObj.token);
+        if (sub) {
+            const inlineKeyboard = new grammy.InlineKeyboard();
+            for (let i = 0; i < sub.configs.length; i++) {
+                inlineKeyboard.text(`Config${i + 1}`, `config${i + 1}`);
+            }
+            inlineKeyboard.row()
+            for (let i = 0; i < sub.configs.length; i++) {
+                inlineKeyboard.text(`QR${i + 1}`, `qr${i + 1}`);
+            }
+            ctx.reply("Choose your config type:", { reply_markup: inlineKeyboard });
+        } else {
+            ctx.reply("Can not find your account!");
+        }
     } else {
-        ctx.reply("You should send your login token first.click /start");
+        ctx.reply("You should send your login token first. click /start");
     }
 });
 
 //!----------------------callback queries----------------------!//
 
-bot.callbackQuery("vmess", async (ctx) => {
+bot.callbackQuery(/(config)\d+/, async (ctx) => {
     if (ctx.chat) {
         let userObj = getChatObject(ctx.chat.id);
         if (userObj && await db.checkSub(userObj.token)) {
             const sub = await db.getSub(userObj.token);
             if (sub) {
-                const buff = new Buffer(JSON.stringify(sub.configs[0]));
+                const num: number = parseInt(ctx.callbackQuery.data.slice(6));
+                const buff = new Buffer(JSON.stringify(sub.configs[num - 1]));
                 ctx.reply("vmess://" + buff.toString("base64"));
             }
         }
@@ -84,13 +94,14 @@ bot.callbackQuery("vmess", async (ctx) => {
     }
 });
 
-bot.callbackQuery("qr", async (ctx) => {
+bot.callbackQuery(/(qr)\d+/, async (ctx) => {
     if (ctx.chat) {
         let userObj = getChatObject(ctx.chat.id);
         if (userObj && await db.checkSub(userObj.token)) {
             const sub = await db.getSub(userObj.token);
             if (sub) {
-                const buff = new Buffer(JSON.stringify(sub.configs[0]));
+                const num: number = parseInt(ctx.callbackQuery.data.slice(2));
+                const buff = new Buffer(JSON.stringify(sub.configs[num - 1]));
                 ctx.replyWithPhoto(new grammy.InputFile(
                     qrImage.imageSync("vmess://" + buff.toString("base64"), { type: "png" })
                 ));
