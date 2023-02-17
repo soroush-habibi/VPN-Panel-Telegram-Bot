@@ -7,7 +7,10 @@ const users = [];
 //!----------------------keyboards----------------------!//
 const customKeyboard = new grammy.Keyboard()
     .text("get config")
-    .text("server status")
+    .text("server status").row()
+    .text("profile")
+    .text("guide").row()
+    .text("support")
     .persistent()
     .resized();
 const configInlineKeyboard = new grammy.InlineKeyboard()
@@ -58,9 +61,12 @@ bot.hears("get config", (ctx) => {
 bot.callbackQuery("vmess", async (ctx) => {
     if (ctx.chat) {
         let userObj = getChatObject(ctx.chat.id);
-        if (userObj) {
-            const buff = new Buffer(JSON.stringify(await db.getSub(userObj.token)));
-            ctx.reply("vmess://" + buff.toString("base64"));
+        if (userObj && await db.checkSub(userObj.token)) {
+            const sub = await db.getSub(userObj.token);
+            if (sub) {
+                const buff = new Buffer(JSON.stringify(sub.configs[0]));
+                ctx.reply("vmess://" + buff.toString("base64"));
+            }
         }
         await ctx.answerCallbackQuery();
     }
@@ -68,9 +74,12 @@ bot.callbackQuery("vmess", async (ctx) => {
 bot.callbackQuery("qr", async (ctx) => {
     if (ctx.chat) {
         let userObj = getChatObject(ctx.chat.id);
-        if (userObj) {
-            const buff = new Buffer(JSON.stringify(await db.getSub(userObj.token)));
-            ctx.replyWithPhoto(new grammy.InputFile(qrImage.imageSync("vmess://" + buff.toString("base64"), { type: "png" })));
+        if (userObj && await db.checkSub(userObj.token)) {
+            const sub = await db.getSub(userObj.token);
+            if (sub) {
+                const buff = new Buffer(JSON.stringify(sub.configs[0]));
+                ctx.replyWithPhoto(new grammy.InputFile(qrImage.imageSync("vmess://" + buff.toString("base64"), { type: "png" })));
+            }
         }
         await ctx.answerCallbackQuery();
     }

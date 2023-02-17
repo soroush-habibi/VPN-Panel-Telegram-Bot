@@ -1,5 +1,6 @@
 import grammy from 'grammy';
 import qrImage from 'qr-image';
+import moment from 'moment';
 
 import user from './model/user.js';
 import db from './model/db.js';
@@ -12,7 +13,10 @@ const users: user[] = [];
 
 const customKeyboard = new grammy.Keyboard()
     .text("get config")
-    .text("server status")
+    .text("server status").row()
+    .text("profile")
+    .text("guide").row()
+    .text("support")
     .persistent()
     .resized();
 
@@ -69,24 +73,30 @@ bot.hears("get config", (ctx) => {
 bot.callbackQuery("vmess", async (ctx) => {
     if (ctx.chat) {
         let userObj = getChatObject(ctx.chat.id);
-        if (userObj) {
-            const buff = new Buffer(JSON.stringify(await db.getSub(userObj.token)));
-            ctx.reply("vmess://" + buff.toString("base64"));
+        if (userObj && await db.checkSub(userObj.token)) {
+            const sub = await db.getSub(userObj.token);
+            if (sub) {
+                const buff = new Buffer(JSON.stringify(sub.configs[0]));
+                ctx.reply("vmess://" + buff.toString("base64"));
+            }
         }
-        await ctx.answerCallbackQuery()
+        await ctx.answerCallbackQuery();
     }
 });
 
 bot.callbackQuery("qr", async (ctx) => {
     if (ctx.chat) {
         let userObj = getChatObject(ctx.chat.id);
-        if (userObj) {
-            const buff = new Buffer(JSON.stringify(await db.getSub(userObj.token)));
-            ctx.replyWithPhoto(new grammy.InputFile(
-                qrImage.imageSync("vmess://" + buff.toString("base64"), { type: "png" })
-            ));
+        if (userObj && await db.checkSub(userObj.token)) {
+            const sub = await db.getSub(userObj.token);
+            if (sub) {
+                const buff = new Buffer(JSON.stringify(sub.configs[0]));
+                ctx.replyWithPhoto(new grammy.InputFile(
+                    qrImage.imageSync("vmess://" + buff.toString("base64"), { type: "png" })
+                ));
+            }
         }
-        await ctx.answerCallbackQuery()
+        await ctx.answerCallbackQuery();
     }
 });
 
