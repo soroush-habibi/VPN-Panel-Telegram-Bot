@@ -7,6 +7,10 @@ import db from './model/db.js';
 
 const bot = new grammy.Bot("5991825741:AAGzDG7sIV90vU_5vNSVmh0506gO8lNz53I");
 
+bot.api.setMyCommands([{
+    command: "start", description: "login with token..."
+}]);
+
 const users: user[] = [];
 
 //!----------------------keyboards----------------------!//
@@ -17,6 +21,17 @@ const customKeyboard = new grammy.Keyboard()
     .text("profile")
     .text("guide").row()
     .text("support")
+    .text("log out")
+    .persistent()
+    .resized();
+
+const adminCustomKeyboard = new grammy.Keyboard()
+    .text("users list")
+    .text("add user").row()
+    .text("add config")
+    .text("change status").row()
+    .text("server status")
+    .text("log out")
     .persistent()
     .resized();
 
@@ -40,7 +55,11 @@ bot.command("start", (ctx) => {
     } else if (!userObj.token) {
         ctx.reply("Please enter your token:", { reply_markup: { remove_keyboard: true } });
     } else if (userObj.token) {
-        ctx.reply("You have loged in", { reply_markup: customKeyboard });
+        if (userObj.admin) {
+            ctx.reply("You have loged in", { reply_markup: adminCustomKeyboard });
+        } else {
+            ctx.reply("You have loged in", { reply_markup: customKeyboard });
+        }
     }
 });
 
@@ -57,7 +76,9 @@ bot.hears("server status", (ctx) => {
 
 bot.hears("get config", async (ctx) => {
     let userObj = getChatObject(ctx.chat.id);
-    if (userObj && userObj.token) {
+    if (userObj && userObj.admin) {
+        ctx.reply("You are admin");
+    } else if (userObj && userObj.token) {
         const sub = await db.getSub(userObj.token);
         if (sub) {
             const inlineKeyboard = new grammy.InlineKeyboard();
@@ -68,7 +89,7 @@ bot.hears("get config", async (ctx) => {
             for (let i = 0; i < sub.configs.length; i++) {
                 inlineKeyboard.text(`QR${i + 1}`, `qr${i + 1}`);
             }
-            ctx.reply("Choose your config type:", { reply_markup: inlineKeyboard });
+            ctx.reply("Choose your config:", { reply_markup: inlineKeyboard });
         } else {
             ctx.reply("Can not find your account!");
         }
@@ -80,7 +101,11 @@ bot.hears("get config", async (ctx) => {
 //!----------------------callback queries----------------------!//
 
 bot.callbackQuery(/(config)\d+/, async (ctx) => {
-    if (ctx.chat) {
+    let userObj;
+    ctx.chat && (userObj = getChatObject(ctx.chat.id));
+    if (userObj && userObj.admin) {
+        ctx.reply("You are admin");
+    } else if (ctx.chat) {
         let userObj = getChatObject(ctx.chat.id);
         if (userObj && await db.checkSub(userObj.token)) {
             const sub = await db.getSub(userObj.token);
@@ -95,7 +120,11 @@ bot.callbackQuery(/(config)\d+/, async (ctx) => {
 });
 
 bot.callbackQuery(/(qr)\d+/, async (ctx) => {
-    if (ctx.chat) {
+    let userObj;
+    ctx.chat && (userObj = getChatObject(ctx.chat.id));
+    if (userObj && userObj.admin) {
+        ctx.reply("You are admin");
+    } else if (ctx.chat) {
         let userObj = getChatObject(ctx.chat.id);
         if (userObj && await db.checkSub(userObj.token)) {
             const sub = await db.getSub(userObj.token);
@@ -121,7 +150,13 @@ bot.on("message", async (ctx) => {
         } else if (!(await db.checkSub(ctx.message.text.trim()))) {
             ctx.reply("Can not find token in database!", { reply_markup: { remove_keyboard: true } });
         } else {
-            ctx.reply("done!", { reply_markup: customKeyboard });
+            const dbUser = await db.getSub(ctx.message.text.trim());
+            dbUser?.admin && (user.admin = true);
+            if (user.admin) {
+                ctx.reply("done!", { reply_markup: adminCustomKeyboard });
+            } else {
+                ctx.reply("done!", { reply_markup: customKeyboard });
+            }
             user.token = ctx.message.text.trim();
         }
     }

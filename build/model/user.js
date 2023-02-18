@@ -1,6 +1,7 @@
 export default class userModel {
     constructor(chatId) {
         this._token = "";
+        this._admin = false;
         this._chatId = chatId;
     }
     get chatId() {
@@ -11,5 +12,11 @@ export default class userModel {
     }
     set token(token) {
         this._token = token;
+    }
+    get admin() {
+        return this._admin;
+    }
+    set admin(admin) {
+        this._admin = admin;
     }
 }
