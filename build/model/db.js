@@ -18,4 +18,11 @@ export default class db {
             return undefined;
         }
     }
+    static async addSession(chatId, token, admin = false) {
+        await this.client.db("vpnBot").collection("sessions").insertOne({ chat_id: chatId, token: token, admin: admin });
+    }
+    static async getSessions() {
+        const data = await this.client.db("vpnBot").collection("sessions").find({}).toArray();
+        return data;
+    }
 }

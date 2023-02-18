@@ -1,5 +1,6 @@
 import grammy from 'grammy';
 import qrImage from 'qr-image';
+import moment from 'moment';
 import user from './model/user.js';
 import db from './model/db.js';
 const bot = new grammy.Bot("5991825741:AAGzDG7sIV90vU_5vNSVmh0506gO8lNz53I");
@@ -7,6 +8,7 @@ bot.api.setMyCommands([{
         command: "start", description: "login with token..."
     }]);
 const users = [];
+const startTime = moment().utc();
 //!----------------------keyboards----------------------!//
 const customKeyboard = new grammy.Keyboard()
     .text("get config")
@@ -23,6 +25,7 @@ const adminCustomKeyboard = new grammy.Keyboard()
     .text("add config")
     .text("change status").row()
     .text("server status")
+    .text("stats").row()
     .text("log out")
     .persistent()
     .resized();
@@ -89,6 +92,10 @@ bot.hears("get config", async (ctx) => {
         ctx.reply("You should send your login token first. click /start");
     }
 });
+bot.hears("stats", (ctx) => {
+    const upTime = startTime.fromNow();
+    const usersCount = users.length;
+});
 //!----------------------callback queries----------------------!//
 bot.callbackQuery(/(config)\d+/, async (ctx) => {
     let userObj;
@@ -148,6 +155,7 @@ bot.on("message", async (ctx) => {
                 ctx.reply("done!", { reply_markup: customKeyboard });
             }
             user.token = ctx.message.text.trim();
+            await db.addSession(ctx.chat.id, ctx.message.text.trim(), user.admin);
         }
     }
 });
@@ -164,4 +172,14 @@ bot.catch((err) => {
     console.log(err.message);
 });
 //!----------------------launch----------------------!//
-bot.start();
+db.connect(async (client) => {
+    const sessions = await db.getSessions();
+    for (let i of sessions) {
+        const userObj = new user(i.chat_id);
+        userObj.token = i.token;
+        userObj.admin = i.admin;
+        users.push(userObj);
+    }
+    client.close();
+    bot.start();
+});

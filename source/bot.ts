@@ -13,6 +13,9 @@ bot.api.setMyCommands([{
 
 const users: user[] = [];
 
+const startTime = moment().utc()
+
+
 //!----------------------keyboards----------------------!//
 
 const customKeyboard = new grammy.Keyboard()
@@ -31,6 +34,7 @@ const adminCustomKeyboard = new grammy.Keyboard()
     .text("add config")
     .text("change status").row()
     .text("server status")
+    .text("stats").row()
     .text("log out")
     .persistent()
     .resized();
@@ -98,6 +102,11 @@ bot.hears("get config", async (ctx) => {
     }
 });
 
+bot.hears("stats", (ctx) => {
+    const upTime: string = startTime.fromNow();
+    const usersCount: number = users.length;
+})
+
 //!----------------------callback queries----------------------!//
 
 bot.callbackQuery(/(config)\d+/, async (ctx) => {
@@ -158,6 +167,7 @@ bot.on("message", async (ctx) => {
                 ctx.reply("done!", { reply_markup: customKeyboard });
             }
             user.token = ctx.message.text.trim();
+            await db.addSession(ctx.chat.id, ctx.message.text.trim(), user.admin)
         }
     }
 });
@@ -179,4 +189,16 @@ bot.catch((err) => {
 
 //!----------------------launch----------------------!//
 
-bot.start();
+db.connect(async (client) => {
+    const sessions = await db.getSessions();
+
+    for (let i of sessions) {
+        const userObj = new user(i.chat_id);
+        userObj.token = i.token;
+        userObj.admin = i.admin;
+        users.push(userObj);
+    }
+
+    client.close();
+    bot.start();
+});

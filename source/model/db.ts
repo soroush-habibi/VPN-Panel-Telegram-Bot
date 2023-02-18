@@ -7,6 +7,12 @@ interface sub {
     configs: object[]
 }
 
+interface session {
+    chat_id: number,
+    token: string,
+    admin: boolean
+}
+
 export default class db {
     private static client: mongodb.MongoClient;
     static async connect(func: (client: mongodb.MongoClient) => void) {
@@ -32,5 +38,15 @@ export default class db {
         } else {
             return undefined;
         }
+    }
+
+    static async addSession(chatId: number, token: string, admin: boolean = false): Promise<void> {
+        await this.client.db("vpnBot").collection("sessions").insertOne({ chat_id: chatId, token: token, admin: admin });
+    }
+
+    static async getSessions(): Promise<session[]> {
+        const data = await this.client.db("vpnBot").collection("sessions").find({}).toArray()
+
+        return data;
     }
 }
