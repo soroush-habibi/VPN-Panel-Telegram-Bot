@@ -11,7 +11,7 @@ bot.api.setMyCommands([{
     command: "start", description: "login with token..."
 }]);
 
-const users: user[] = [];
+let users: user[] = [];
 
 const startTime = moment().utc()
 
@@ -60,9 +60,9 @@ bot.command("start", (ctx) => {
         ctx.reply("Please enter your token:", { reply_markup: { remove_keyboard: true } });
     } else if (userObj.token) {
         if (userObj.admin) {
-            ctx.reply("You have loged in", { reply_markup: adminCustomKeyboard });
+            ctx.reply("You have logged in", { reply_markup: adminCustomKeyboard });
         } else {
-            ctx.reply("You have loged in", { reply_markup: customKeyboard });
+            ctx.reply("You have logged in", { reply_markup: customKeyboard });
         }
     }
 });
@@ -102,10 +102,39 @@ bot.hears("get config", async (ctx) => {
     }
 });
 
-bot.hears("stats", (ctx) => {
-    const upTime: string = startTime.fromNow();
-    const usersCount: number = users.length;
-})
+bot.hears("stats", async (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+
+    if (userObj && userObj.admin) {
+        const upTime: string = startTime.fromNow();
+        const usersCount: number = users.length;
+
+        const dbStats = await db.getStats();
+
+        const qrClicks = dbStats.qr_clicks;
+        const configClicks = dbStats.config_clicks;
+
+        ctx.reply(`📊<b>Statistics:</b>
+        
+<b>⏰Bot uptime: ${upTime}</b>
+<b>👥Users count: ${usersCount}</b>
+<b>📷QR code received: ${qrClicks}</b>
+<b>📝Config received: ${configClicks}</b>`, { parse_mode: 'HTML' });
+    } else {
+        ctx.reply("You dont have permission to see bot stats");
+    }
+});
+
+bot.hears("log out", async (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+    if (userObj && userObj.token) {
+        removeChatObject(ctx.chat.id);
+        await db.removeSession(ctx.chat.id);
+        ctx.reply("logged out!", { reply_markup: { remove_keyboard: true } });
+    } else {
+        ctx.reply("you are not logged in", { reply_markup: { remove_keyboard: true } });
+    }
+});
 
 //!----------------------callback queries----------------------!//
 
@@ -122,6 +151,7 @@ bot.callbackQuery(/(config)\d+/, async (ctx) => {
                 const num: number = parseInt(ctx.callbackQuery.data.slice(6));
                 const buff = new Buffer(JSON.stringify(sub.configs[num - 1]));
                 ctx.reply("vmess://" + buff.toString("base64"));
+                await db.clickConfig();
             }
         }
         await ctx.answerCallbackQuery();
@@ -143,6 +173,7 @@ bot.callbackQuery(/(qr)\d+/, async (ctx) => {
                 ctx.replyWithPhoto(new grammy.InputFile(
                     qrImage.imageSync("vmess://" + buff.toString("base64"), { type: "png" })
                 ));
+                await db.clickQr();
             }
         }
         await ctx.answerCallbackQuery();
@@ -181,6 +212,16 @@ function getChatObject(chatId: number): user | void {
         }
     }
 }
+
+function removeChatObject(chatId: number): void {
+    for (let i = 0; i < users.length; i++) {
+        if (users[i].chatId === chatId) {
+            users.splice(i);
+            return;
+        }
+    }
+}
+
 //!----------------------error handling----------------------!//
 
 bot.catch((err) => {

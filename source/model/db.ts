@@ -13,6 +13,11 @@ interface session {
     admin: boolean
 }
 
+interface stats {
+    qr_clicks: number,
+    config_clicks: number
+}
+
 export default class db {
     private static client: mongodb.MongoClient;
     static async connect(func: (client: mongodb.MongoClient) => void) {
@@ -44,8 +49,26 @@ export default class db {
         await this.client.db("vpnBot").collection("sessions").insertOne({ chat_id: chatId, token: token, admin: admin });
     }
 
+    static async removeSession(chatId: number): Promise<void> {
+        await this.client.db("vpnBot").collection("sessions").deleteOne({ chat_id: chatId });
+    }
+
     static async getSessions(): Promise<session[]> {
-        const data = await this.client.db("vpnBot").collection("sessions").find({}).toArray()
+        const data = await this.client.db("vpnBot").collection("sessions").find({}).toArray();
+
+        return data;
+    }
+
+    static async clickQr(): Promise<void> {
+        await this.client.db("vpnBot").collection("statistics").updateOne({}, { $inc: { qr_clicks: 1 } });
+    }
+
+    static async clickConfig(): Promise<void> {
+        await this.client.db("vpnBot").collection("statistics").updateOne({}, { $inc: { config_clicks: 1 } });
+    }
+
+    static async getStats(): Promise<stats> {
+        const data = await this.client.db("vpnBot").collection("statistics").findOne({});
 
         return data;
     }

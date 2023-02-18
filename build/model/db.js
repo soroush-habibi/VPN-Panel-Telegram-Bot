@@ -21,8 +21,21 @@ export default class db {
     static async addSession(chatId, token, admin = false) {
         await this.client.db("vpnBot").collection("sessions").insertOne({ chat_id: chatId, token: token, admin: admin });
     }
+    static async removeSession(chatId) {
+        await this.client.db("vpnBot").collection("sessions").deleteOne({ chat_id: chatId });
+    }
     static async getSessions() {
         const data = await this.client.db("vpnBot").collection("sessions").find({}).toArray();
+        return data;
+    }
+    static async clickQr() {
+        await this.client.db("vpnBot").collection("statistics").updateOne({}, { $inc: { qr_clicks: 1 } });
+    }
+    static async clickConfig() {
+        await this.client.db("vpnBot").collection("statistics").updateOne({}, { $inc: { config_clicks: 1 } });
+    }
+    static async getStats() {
+        const data = await this.client.db("vpnBot").collection("statistics").findOne({});
         return data;
     }
 }
