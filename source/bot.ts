@@ -151,6 +151,17 @@ bot.hears("profile", async (ctx) => {
     }
 });
 
+bot.hears("announce", (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+
+    if (userObj && userObj.admin) {
+        ctx.reply("send your announcement:");
+        userObj.status = "announce";
+    } else {
+        ctx.reply("You dont have permission to send announcement");
+    }
+});
+
 //!----------------------callback queries----------------------!//
 
 bot.callbackQuery(/(config)\d+/, async (ctx) => {
@@ -213,10 +224,31 @@ bot.on("message", async (ctx) => {
                 ctx.reply("done!", { reply_markup: customKeyboard });
             }
             user.token = ctx.message.text.trim();
-            await db.addSession(ctx.chat.id, ctx.message.text.trim(), user.admin)
+            await db.addSession(ctx.chat.id, ctx.message.text.trim(), user.admin);
         }
+    } else if (user && user.token && user.admin && user.status === "announce") {
+        for (let i of users) {
+            if (i.chatId === ctx.chat.id) {
+                continue;
+            }
+            if (ctx.message.document) {
+                ctx.api.sendDocument(i.chatId, ctx.message.document.file_id, { caption: ctx.message.text, protect_content: true });
+            } else if (ctx.message.text) {
+                ctx.api.sendMessage(i.chatId, ctx.message.text, { protect_content: true });
+            }
+        }
+        user.status = "";
     }
 });
+
+bot.on("my_chat_member", async (ctx) => {
+    removeChatObject(ctx.chat.id);
+    await db.removeSession(ctx.chat.id);
+});
+
+setTimeout(() => {
+    resetStatus();
+}, 1000 * 60 * 5);
 
 //!----------------------functions----------------------!//
 
@@ -234,6 +266,12 @@ function removeChatObject(chatId: number): void {
             users.splice(i);
             return;
         }
+    }
+}
+
+function resetStatus(): void {
+    for (let value of users) {
+        value.status = "";
     }
 }
 

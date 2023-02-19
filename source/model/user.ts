@@ -2,6 +2,7 @@ export default class userModel {
     private readonly _chatId: number;
     private _token: string = "";
     private _admin: boolean = false;
+    private _status: string = "";
     constructor(chatId: number) {
         this._chatId = chatId;
     }
@@ -24,5 +25,13 @@ export default class userModel {
 
     public set admin(admin: boolean) {
         this._admin = admin;
+    }
+
+    public get status(): string {
+        return this._status;
+    }
+
+    public set status(status: string) {
+        this._status = status;
     }
 }
