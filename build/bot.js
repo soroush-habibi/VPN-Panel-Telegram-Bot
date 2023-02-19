@@ -26,6 +26,7 @@ const adminCustomKeyboard = new grammy.Keyboard()
     .text("change status").row()
     .text("server status")
     .text("stats").row()
+    .text("announce")
     .text("log out")
     .persistent()
     .resized();
@@ -120,6 +121,21 @@ bot.hears("log out", async (ctx) => {
     }
     else {
         ctx.reply("you are not logged in", { reply_markup: { remove_keyboard: true } });
+    }
+});
+bot.hears("profile", async (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+    if (userObj && userObj.admin) {
+        ctx.reply("You are admin");
+    }
+    else if (userObj && userObj.token) {
+        const dbUser = await db.getSub(userObj.token);
+        const endTime = moment(dbUser?.expiry_date);
+        ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
+⌛️expires in: ${endTime.fromNow(true)}`, { parse_mode: "HTML" });
+    }
+    else {
+        ctx.reply("You should send your login token first. click /start");
     }
 });
 //!----------------------callback queries----------------------!//
