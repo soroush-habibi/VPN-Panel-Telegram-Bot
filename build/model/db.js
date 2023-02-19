@@ -38,4 +38,8 @@ export default class db {
         const data = await this.client.db("vpnBot").collection("statistics").findOne({});
         return data;
     }
+    static async addConfig(token, config) {
+        const data = await this.client.db("vpnBot").collection("subs").updateOne({ token: token }, { $push: { configs: config } });
+        return data.modifiedCount > 0 ? true : false;
+    }
 }

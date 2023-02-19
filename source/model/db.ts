@@ -72,4 +72,10 @@ export default class db {
 
         return data;
     }
+
+    static async addConfig(token: string, config: object): Promise<boolean> {
+        const data = await this.client.db("vpnBot").collection("subs").updateOne({ token: token }, { $push: { configs: config } });
+
+        return data.modifiedCount > 0 ? true : false;
+    }
 }

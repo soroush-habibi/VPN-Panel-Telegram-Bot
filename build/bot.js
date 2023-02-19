@@ -148,6 +148,16 @@ bot.hears("announce", (ctx) => {
         ctx.reply("You dont have permission to send announcement");
     }
 });
+bot.hears("add config", (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+    if (userObj && userObj.admin) {
+        ctx.reply("send user token and your config in base64 form in separate lines:");
+        userObj.status = "add config";
+    }
+    else {
+        ctx.reply("You dont have permission to add config");
+    }
+});
 //!----------------------callback queries----------------------!//
 bot.callbackQuery(/(config)\d+/, async (ctx) => {
     let userObj;
@@ -222,6 +232,34 @@ bot.on("message", async (ctx) => {
             }
             else if (ctx.message.text) {
                 ctx.api.sendMessage(i.chatId, ctx.message.text, { protect_content: true });
+            }
+        }
+        user.status = "";
+    }
+    else if (user && user.token && user.admin && user.status === "add config") {
+        if (ctx.message.text) {
+            const userToken = ctx.message.text.split("\n")[0];
+            let vmess = ctx.message.text.split("\n")[1];
+            if (/vmess:\/\/(.+)/.test(vmess) && /\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(userToken)) {
+                vmess = vmess.slice(8);
+                const buff = new Buffer(vmess, "base64");
+                const config = JSON.parse(buff.toString('ascii'));
+                const dbUser = await db.getSub(userToken);
+                if (dbUser?.admin) {
+                    ctx.reply("You can not add config to admin");
+                }
+                else {
+                    const result = await db.addConfig(userToken, config);
+                    if (result) {
+                        ctx.reply("Config added successfully");
+                    }
+                    else {
+                        ctx.reply("Can not find user!");
+                    }
+                }
+            }
+            else {
+                ctx.reply("Invalid input");
             }
         }
         user.status = "";
