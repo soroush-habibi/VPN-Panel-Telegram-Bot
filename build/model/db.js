@@ -1,7 +1,7 @@
 import mongodb from 'mongodb';
 export default class db {
     static async connect(func) {
-        const client = await mongodb.MongoClient.connect("mongodb://127.0.0.1:27017");
+        const client = await mongodb.MongoClient.connect("mongodb://soroush:Q631YNHEf3SuD@127.0.0.1:27017");
         this.client = client;
         func(client);
     }

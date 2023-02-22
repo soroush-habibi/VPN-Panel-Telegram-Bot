@@ -23,10 +23,11 @@ const adminCustomKeyboard = new grammy.Keyboard()
     .text("users list")
     .text("add user").row()
     .text("add config")
-    .text("change status").row()
-    .text("server status")
-    .text("stats").row()
-    .text("announce")
+    .text("remove config").row()
+    .text("change status")
+    .text("server status").row()
+    .text("stats")
+    .text("announce").row()
     .text("log out")
     .persistent()
     .resized();
@@ -75,15 +76,20 @@ bot.hears("get config", async (ctx) => {
     else if (userObj && userObj.token) {
         const sub = await db.getSub(userObj.token);
         if (sub) {
-            const inlineKeyboard = new grammy.InlineKeyboard();
-            for (let i = 0; i < sub.configs.length; i++) {
-                inlineKeyboard.text(`Config${i + 1}`, `config${i + 1}`);
+            if (sub.configs.length == 0) {
+                ctx.reply("You do not have any configs.\nIf your subscription did not expires please contact support!");
             }
-            inlineKeyboard.row();
-            for (let i = 0; i < sub.configs.length; i++) {
-                inlineKeyboard.text(`QR${i + 1}`, `qr${i + 1}`);
+            else {
+                const inlineKeyboard = new grammy.InlineKeyboard();
+                for (let i = 0; i < sub.configs.length; i++) {
+                    inlineKeyboard.text(`Config${i + 1}`, `config${i + 1}`);
+                }
+                inlineKeyboard.row();
+                for (let i = 0; i < sub.configs.length; i++) {
+                    inlineKeyboard.text(`QR${i + 1}`, `qr${i + 1}`);
+                }
+                ctx.reply("Choose your config:", { reply_markup: inlineKeyboard });
             }
-            ctx.reply("Choose your config:", { reply_markup: inlineKeyboard });
         }
         else {
             ctx.reply("Can not find your account!");
@@ -131,8 +137,14 @@ bot.hears("profile", async (ctx) => {
     else if (userObj && userObj.token) {
         const dbUser = await db.getSub(userObj.token);
         const endTime = moment(dbUser?.expiry_date);
-        ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
+        if (endTime.isBefore(moment.now())) {
+            ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
+⌛️expires in: expired!`, { parse_mode: "HTML" });
+        }
+        else {
+            ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
 ⌛️expires in: ${endTime.fromNow(true)}`, { parse_mode: "HTML" });
+        }
     }
     else {
         ctx.reply("You should send your login token first. click /start");
