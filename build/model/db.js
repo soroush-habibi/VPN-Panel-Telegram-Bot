@@ -42,4 +42,8 @@ export default class db {
         const data = await this.client.db("vpnBot").collection("subs").updateOne({ token: token }, { $push: { configs: config } });
         return data.modifiedCount > 0 ? true : false;
     }
+    static async removeConfig(token, config) {
+        const data = await this.client.db("vpnBot").collection("subs").updateOne({ token: token }, { $pull: { configs: config } });
+        return data.modifiedCount > 0 ? true : false;
+    }
 }
