@@ -46,4 +46,8 @@ export default class db {
         const data = await this.client.db("vpnBot").collection("subs").updateOne({ token: token }, { $pull: { configs: config } });
         return data.modifiedCount > 0 ? true : false;
     }
+    static async addUser(token, expiryDate, admin) {
+        const data = await this.client.db("vpnBot").collection("subs").insertOne({ token: token, expiry_date: expiryDate, admin: admin, configs: [] });
+        return data.acknowledged;
+    }
 }

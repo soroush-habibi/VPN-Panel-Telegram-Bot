@@ -193,6 +193,17 @@ bot.hears("remove config", (ctx) => {
     }
 });
 
+bot.hears("add user", (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+
+    if (userObj && userObj.admin) {
+        ctx.reply("send user token, expiry date and admin boolean in separate lines:");
+        userObj.status = "add user";
+    } else {
+        ctx.reply("You dont have permission to add user");
+    }
+})
+
 //!----------------------callback queries----------------------!//
 
 bot.callbackQuery(/(config)\d+/, async (ctx) => {
@@ -320,6 +331,34 @@ bot.on("message", async (ctx) => {
                 ctx.reply("Invalid input");
             }
         }
+        user.status = "";
+    } else if (user && user.token && user.admin && user.status === "add user") {
+        if (ctx.message.text) {
+            try {
+                const userToken = ctx.message.text.split("\n")[0];
+                const expiryDate = moment(ctx.message.text.split("\n")[1]);
+                const admin: boolean = ctx.message.text.split("\n")[2] === "true" ? true : false;
+                if (expiryDate.isValid() && /\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(userToken)) {
+                    let br = false;
+                    const result = await db.addUser(userToken, expiryDate.toDate(), admin).catch(e => {
+                        ctx.reply("Token exists already");
+                        br = true;
+                    });
+                    if (!br) {
+                        if (result) {
+                            ctx.reply("User added successfully!");
+                        } else {
+                            ctx.reply("user insertion failed!");
+                        }
+                    }
+                } else {
+                    ctx.reply("Invalid input");
+                }
+            } catch (e) {
+                ctx.reply("Invalid input");
+            }
+        }
+        user.status = "";
     }
 });
 

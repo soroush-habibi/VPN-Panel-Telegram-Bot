@@ -84,4 +84,10 @@ export default class db {
 
         return data.modifiedCount > 0 ? true : false;
     }
+
+    static async addUser(token: string, expiryDate: Date, admin: boolean): Promise<boolean> {
+        const data = await this.client.db("vpnBot").collection("subs").insertOne({ token: token, expiry_date: expiryDate, admin: admin, configs: [] });
+
+        return data.acknowledged;
+    }
 }
