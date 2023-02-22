@@ -15,14 +15,16 @@ let users: user[] = [];
 
 const startTime = moment().utc();
 
+let globalStatus = `Main server: No Issues🟢
+CDN: Minor Issues🟠
+Overall: No Issues`;
+
 //!----------------------keyboards----------------------!//
 
 const customKeyboard = new grammy.Keyboard()
     .text("get config")
     .text("server status").row()
     .text("profile")
-    .text("guide").row()
-    .text("support")
     .text("log out")
     .persistent()
     .resized();
@@ -73,7 +75,7 @@ bot.command("start", (ctx) => {
 bot.hears("server status", (ctx) => {
     let userObj = getChatObject(ctx.chat.id);
     if (userObj && userObj.token) {
-        ctx.reply("Ok");
+        ctx.reply(globalStatus);
     } else {
         ctx.reply("You should send your login token first. click /start");
     }
@@ -231,6 +233,17 @@ bot.hears("users list", async (ctx) => {
         }
     } else {
         ctx.reply("You dont have permission to add user");
+    }
+});
+
+bot.hears("change status", (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+
+    if (userObj && userObj.admin) {
+        ctx.reply("Send new status:");
+        userObj.status = "change status";
+    } else {
+        ctx.reply("You dont have permission to change status");
     }
 });
 
@@ -424,6 +437,12 @@ bot.on("message", async (ctx) => {
             } catch (e) {
                 ctx.reply("Invalid input");
             }
+        }
+        user.status = "";
+    } else if (user && user.token && user.admin && user.status === "change status") {
+        if (ctx.message.text) {
+            globalStatus = ctx.message.text;
+            ctx.reply("Server status changed successfully!");
         }
         user.status = "";
     }
