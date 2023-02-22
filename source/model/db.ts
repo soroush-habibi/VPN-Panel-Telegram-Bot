@@ -45,6 +45,16 @@ export default class db {
         }
     }
 
+    static async getSubs(page: number): Promise<sub[] | undefined> {
+        const data = await this.client.db("vpnBot").collection("subs").find({ admin: false }, { projection: { _id: 0 } }).skip((page - 1) * 5).limit(5).toArray();
+
+        if (data) {
+            return data;
+        } else {
+            return undefined;
+        }
+    }
+
     static async addSession(chatId: number, token: string, admin: boolean = false): Promise<void> {
         await this.client.db("vpnBot").collection("sessions").insertOne({ chat_id: chatId, token: token, admin: admin });
     }

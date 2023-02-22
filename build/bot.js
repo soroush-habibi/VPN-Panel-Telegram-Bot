@@ -190,6 +190,36 @@ bot.hears("add user", (ctx) => {
         ctx.reply("You dont have permission to add user");
     }
 });
+bot.hears("users list", async (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+    if (userObj && userObj.admin) {
+        let page = 1;
+        const dbUsers = await db.getSubs(page);
+        let data = `📜Page${page}\n\n`;
+        if (dbUsers) {
+            for (let u of dbUsers) {
+                if (moment(u.expiry_date).isBefore(moment.now())) {
+                    data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
+⌛️expires in: expired!\n\n`;
+                }
+                else {
+                    data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
+⌛️expires in: ${moment(u.expiry_date).fromNow(true)}\n\n`;
+                }
+            }
+            const pagination = new grammy.InlineKeyboard()
+                .text("<", "page" + String(page - 1))
+                .text(">", "page" + String(page + 1));
+            ctx.reply(data, { reply_markup: pagination, parse_mode: "HTML" });
+        }
+        else {
+            ctx.reply("List is empty!");
+        }
+    }
+    else {
+        ctx.reply("You dont have permission to add user");
+    }
+});
 //!----------------------callback queries----------------------!//
 bot.callbackQuery(/(config)\d+/, async (ctx) => {
     let userObj;
@@ -229,6 +259,40 @@ bot.callbackQuery(/(qr)\d+/, async (ctx) => {
             }
         }
         await ctx.answerCallbackQuery();
+    }
+});
+bot.callbackQuery(/page(\d)+/, async (ctx) => {
+    const page = parseInt(ctx.callbackQuery.data.slice(4));
+    let pagination;
+    if (page == 0) {
+        ctx.answerCallbackQuery({ text: "We dont have zero page.sorry😆" });
+        return;
+    }
+    else {
+        pagination = new grammy.InlineKeyboard()
+            .text("<", "page" + String(page - 1))
+            .text(">", "page" + String(page + 1));
+    }
+    const dbUsers = await db.getSubs(page);
+    let data = `📜Page${page}\n\n`;
+    if (dbUsers?.length) {
+        for (let u of dbUsers) {
+            if (moment(u.expiry_date).isBefore(moment.now())) {
+                data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
+⌛️expires in: expired!\n\n`;
+            }
+            else {
+                data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
+⌛️expires in: ${moment(u.expiry_date).fromNow(true)}\n\n`;
+            }
+        }
+        const pagination = new grammy.InlineKeyboard()
+            .text("<", "page" + String(page - 1))
+            .text(">", "page" + String(page + 1));
+        ctx.editMessageText(data, { reply_markup: pagination, parse_mode: "HTML" });
+    }
+    else {
+        ctx.editMessageText(`📜Page${page} is empty!`, { reply_markup: pagination });
     }
 });
 //!----------------------events----------------------!//
