@@ -11,12 +11,13 @@ let users = [];
 const startTime = moment().utc();
 let globalStatus = `Main server: No Issues🟢
 CDN: Minor Issues🟠
-Overall: No Issues`;
+Overall: No Issues🟢`;
 //!----------------------keyboards----------------------!//
 const customKeyboard = new grammy.Keyboard()
     .text("get config")
     .text("server status").row()
     .text("profile")
+    .text("support").row()
     .text("log out")
     .persistent()
     .resized();
@@ -30,7 +31,6 @@ const adminCustomKeyboard = new grammy.Keyboard()
     .text("stats")
     .text("announce").row()
     .text("log out")
-    .persistent()
     .resized();
 //!----------------------middlewares----------------------!//
 bot.use((ctx, next) => {
@@ -201,11 +201,13 @@ bot.hears("users list", async (ctx) => {
             for (let u of dbUsers) {
                 if (moment(u.expiry_date).isBefore(moment.now())) {
                     data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
-⌛️expires in: expired!\n\n`;
+⌛️expires in: expired!
+⚙️Port: ${u.configs[0].port}\n\n`;
                 }
                 else {
                     data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
-⌛️expires in: ${moment(u.expiry_date).fromNow(true)}\n\n`;
+⌛️expires in: ${moment(u.expiry_date).fromNow(true)}
+⚙️Port: ${u.configs[0].port}\n\n`;
                 }
             }
             const pagination = new grammy.InlineKeyboard()
@@ -229,6 +231,19 @@ bot.hears("change status", (ctx) => {
     }
     else {
         ctx.reply("You dont have permission to change status");
+    }
+});
+bot.hears("support", (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+    if (userObj && userObj.admin) {
+        ctx.reply("You are admin");
+    }
+    else if (userObj && userObj.token) {
+        ctx.reply("Send your question (do not send file, photo or video):");
+        userObj.status = "send ticket";
+    }
+    else {
+        ctx.reply("You should send your login token first. click /start");
     }
 });
 //!----------------------callback queries----------------------!//
@@ -290,11 +305,13 @@ bot.callbackQuery(/page(\d)+/, async (ctx) => {
         for (let u of dbUsers) {
             if (moment(u.expiry_date).isBefore(moment.now())) {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
-⌛️expires in: expired!\n\n`;
+⌛️expires in: expired!
+⚙️Port: ${u.configs[0].port}\n\n`;
             }
             else {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
-⌛️expires in: ${moment(u.expiry_date).fromNow(true)}\n\n`;
+⌛️expires in: ${moment(u.expiry_date).fromNow(true)}
+⚙️Port: ${u.configs[0].port}\n\n`;
             }
         }
         const pagination = new grammy.InlineKeyboard()
@@ -304,6 +321,20 @@ bot.callbackQuery(/page(\d)+/, async (ctx) => {
     }
     else {
         ctx.editMessageText(`📜Page${page} is empty!`, { reply_markup: pagination });
+    }
+});
+bot.callbackQuery("answer", (ctx) => {
+    let userObj;
+    ctx.chat && (userObj = getChatObject(ctx.chat.id));
+    if (userObj && userObj.admin) {
+        const token = ctx.message?.text?.slice(27, 63);
+        if (token) {
+            ctx.reply("Send your answer:");
+            userObj.status = `answer:${token}`;
+        }
+    }
+    else {
+        ctx.reply("You do not have permission for answer a ticket!");
     }
 });
 //!----------------------events----------------------!//
@@ -341,6 +372,7 @@ bot.on("message", async (ctx) => {
                 ctx.api.sendMessage(i.chatId, ctx.message.text, { protect_content: true });
             }
         }
+        ctx.reply("Sent!");
         user.status = "";
     }
     else if (user && user.token && user.admin && user.status === "add config") {
@@ -404,7 +436,7 @@ bot.on("message", async (ctx) => {
             try {
                 const userToken = ctx.message.text.split("\n")[0];
                 const expiryDate = moment(ctx.message.text.split("\n")[1]);
-                const admin = ctx.message.text.split("\n")[2] === "true" ? true : false;
+                const admin = ctx.message.text.split("\n")[2].toLowerCase() === "true" ? true : false;
                 if (expiryDate.isValid() && /\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(userToken)) {
                     let br = false;
                     const result = await db.addUser(userToken, expiryDate.toDate(), admin).catch(e => {
@@ -434,6 +466,33 @@ bot.on("message", async (ctx) => {
         if (ctx.message.text) {
             globalStatus = ctx.message.text;
             ctx.reply("Server status changed successfully!");
+        }
+        user.status = "";
+    }
+    else if (user && user.token && !user.admin && user.status === "send ticket") {
+        if (ctx.message.text) {
+            const ids = [];
+            for (let i of users) {
+                if (i.admin) {
+                    ids.push(i.chatId);
+                }
+            }
+            ctx.api.sendMessage(ids[Math.floor(Math.random() * ids.length)], `You have a new ticket from <span class="tg-spoiler">${user.token}</span>:\n
+${ctx.message.text}`, {
+                parse_mode: "HTML",
+                reply_markup: new grammy.InlineKeyboard()
+                    .text("answer", "answer")
+            });
+        }
+        user.status = "";
+    }
+    else if (user && user.token && user.admin && /answer:\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(user.status)) {
+        const token = user.status.slice(7);
+        for (let i of users) {
+            if (i.token === token) {
+                ctx.api.sendMessage(i.chatId, `The admin has answered your question:\n
+${ctx.message.text}`);
+            }
         }
         user.status = "";
     }

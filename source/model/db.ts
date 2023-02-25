@@ -1,10 +1,29 @@
 import mongodb from 'mongodb';
 
+interface config {
+    add: string,
+    aid: string,
+    alpn: string,
+    fp: string,
+    host: string,
+    id: string,
+    net: string,
+    path: string,
+    port: string,
+    ps: string,
+    scy: string,
+    sni: string,
+    tls: string,
+    type: string,
+    v: string
+
+}
+
 interface sub {
     token: string,
     expiry_date: Date,
     admin: boolean,
-    configs: object[]
+    configs: config[]
 }
 
 interface session {
