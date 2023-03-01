@@ -71,4 +71,8 @@ export default class db {
         const data = await this.client.db("vpnBot").collection("tickets").updateOne({ _id: new mongodb.ObjectId(id) }, { $set: { answer: answer } });
         return data.modifiedCount > 0 ? true : false;
     }
+    static async updateExpiryDate(token, newDate) {
+        const data = await this.client.db("vpnBot").collection("subs").updateOne({ token: token }, { $set: { expiry_date: newDate } });
+        return data.modifiedCount > 0 ? true : false;
+    }
 }

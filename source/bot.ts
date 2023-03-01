@@ -41,6 +41,7 @@ const adminCustomKeyboard = new grammy.Keyboard()
     .text("server status").row()
     .text("stats")
     .text("announce").row()
+    .text("update expiry date")
     .text("log out")
     .resized();
 
@@ -298,6 +299,17 @@ bot.hears("support", (ctx) => {
     }
 });
 
+bot.hears("update expiry date", (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+
+    if (userObj && userObj.admin) {
+        ctx.reply("Send user token and new expiry date in 2 separate lines:");
+        userObj.status = "change expiry date";
+    } else {
+        ctx.reply("You dont have permission to change expiry date");
+    }
+});
+
 //!----------------------callback queries----------------------!//
 
 bot.callbackQuery(/(config)\d+/, async (ctx) => {
@@ -534,6 +546,28 @@ Send <code>/answer ${ticketId}</code> to answer`, {
                 ctx.reply("Your answer should be at least 10 character.try again:");
             }
         }
+    } else if (user && user.token && user.admin && user.status === "change expiry date") {
+        if (ctx.message.text) {
+            try {
+                const token = ctx.message.text.split("\n")[0];
+                const newDate = moment(ctx.message.text.split("\n")[1]);
+
+                if (/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(token) && newDate.isValid()) {
+                    const result = await db.updateExpiryDate(token, newDate.toDate());
+
+                    if (result) {
+                        ctx.reply("Changed successfully!");
+                    } else {
+                        ctx.reply("Can not find user in database!");
+                    }
+                } else {
+                    ctx.reply("Invalid input");
+                }
+            } catch (e) {
+                ctx.reply("Invalid input");
+            }
+        }
+        user.status = "";
     }
 });
 
