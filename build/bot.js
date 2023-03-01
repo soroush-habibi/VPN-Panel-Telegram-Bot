@@ -142,14 +142,16 @@ bot.hears("stats", async (ctx) => {
         const upTime = startTime.fromNow();
         const usersCount = users.length;
         const dbStats = await db.getStats();
-        const qrClicks = dbStats.qr_clicks;
-        const configClicks = dbStats.config_clicks;
-        ctx.reply(`📊<b>Statistics:</b>
+        if (dbStats) {
+            const qrClicks = dbStats.qr_clicks;
+            const configClicks = dbStats.config_clicks;
+            ctx.reply(`📊<b>Statistics:</b>
         
 <b>⏰Bot uptime: ${upTime}</b>
 <b>👥Users count: ${usersCount}</b>
 <b>📷QR code received: ${qrClicks}</b>
 <b>📝Config received: ${configClicks}</b>`, { parse_mode: 'HTML' });
+        }
     }
     else {
         ctx.reply("You dont have permission to see bot stats");
@@ -523,8 +525,13 @@ Send <code>/answer ${ticketId}</code> to answer`, {
         if (ctx.message.text) {
             if (ctx.message.text.length > 10) {
                 const ticket = await db.getTicket(user.status.slice(7));
-                ctx.api.sendMessage(ticket.chat_id, `Admin answered your ticket:\n\n${ctx.message.text}`);
-                await db.answerTicket(ticket._id, ctx.message.text);
+                if (ticket) {
+                    ctx.api.sendMessage(ticket.chat_id, `Admin answered your ticket:\n\n${ctx.message.text}`);
+                    await db.answerTicket(String(ticket._id), ctx.message.text);
+                }
+                else {
+                    ctx.reply("Can not find ticket in database!");
+                }
                 user.status = "";
             }
             else {

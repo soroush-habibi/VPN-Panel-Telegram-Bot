@@ -38,7 +38,7 @@ interface stats {
 }
 
 interface ticket {
-    _id: string,
+    _id: mongodb.ObjectId,
     token: string,
     chat_id: number,
     message: string,
@@ -63,7 +63,7 @@ export default class db {
 
 
     static async getSub(token: string): Promise<sub | undefined> {
-        const data: sub = await this.client.db("vpnBot").collection("subs").findOne({ token: token }, { projection: { _id: 0 } });
+        const data = await this.client.db("vpnBot").collection<sub>("subs").findOne({ token: token }, { projection: { _id: 0 } });
 
         if (data) {
             return data;
@@ -73,7 +73,7 @@ export default class db {
     }
 
     static async getSubs(page: number): Promise<sub[] | undefined> {
-        const data = await this.client.db("vpnBot").collection("subs").find({ admin: false }, { projection: { _id: 0 } }).skip((page - 1) * 5).limit(5).toArray();
+        const data = await this.client.db("vpnBot").collection<sub>("subs").find({ admin: false }, { projection: { _id: 0 } }).skip((page - 1) * 5).limit(5).toArray();
 
         if (data) {
             return data;
@@ -91,7 +91,7 @@ export default class db {
     }
 
     static async getSessions(): Promise<session[]> {
-        const data = await this.client.db("vpnBot").collection("sessions").find({}).toArray();
+        const data = await this.client.db("vpnBot").collection<session>("sessions").find({}).toArray();
 
         return data;
     }
@@ -104,8 +104,8 @@ export default class db {
         await this.client.db("vpnBot").collection("statistics").updateOne({}, { $inc: { config_clicks: 1 } });
     }
 
-    static async getStats(): Promise<stats> {
-        const data = await this.client.db("vpnBot").collection("statistics").findOne({});
+    static async getStats(): Promise<stats | null> {
+        const data = await this.client.db("vpnBot").collection<stats>("statistics").findOne({});
 
         return data;
     }
@@ -131,11 +131,11 @@ export default class db {
     static async addTicket(token: string, chatId: number, message: string): Promise<string> {
         const data = await this.client.db("vpnBot").collection("tickets").insertOne({ token: token, chat_id: chatId, message: message, answer: "" });
 
-        return data.insertedId;
+        return String(data.insertedId);
     }
 
-    static async getTicket(id: string): Promise<ticket> {
-        const data = await this.client.db("vpnBot").collection("tickets").findOne({ _id: new mongodb.ObjectId(id) });
+    static async getTicket(id: string): Promise<ticket | null> {
+        const data = await this.client.db("vpnBot").collection<ticket>("tickets").findOne({ _id: new mongodb.ObjectId(id) });
 
         return data;
     }

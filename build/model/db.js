@@ -61,7 +61,7 @@ export default class db {
     }
     static async addTicket(token, chatId, message) {
         const data = await this.client.db("vpnBot").collection("tickets").insertOne({ token: token, chat_id: chatId, message: message, answer: "" });
-        return data.insertedId;
+        return String(data.insertedId);
     }
     static async getTicket(id) {
         const data = await this.client.db("vpnBot").collection("tickets").findOne({ _id: new mongodb.ObjectId(id) });
