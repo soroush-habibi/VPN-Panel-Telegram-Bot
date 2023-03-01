@@ -59,4 +59,16 @@ export default class db {
         const data = await this.client.db("vpnBot").collection("subs").insertOne({ token: token, expiry_date: expiryDate, admin: admin, configs: [] });
         return data.acknowledged;
     }
+    static async addTicket(token, chatId, message) {
+        const data = await this.client.db("vpnBot").collection("tickets").insertOne({ token: token, chat_id: chatId, message: message, answer: "" });
+        return data.insertedId;
+    }
+    static async getTicket(id) {
+        const data = await this.client.db("vpnBot").collection("tickets").findOne({ _id: new mongodb.ObjectId(id) });
+        return data;
+    }
+    static async answerTicket(id, answer) {
+        const data = await this.client.db("vpnBot").collection("tickets").updateOne({ _id: new mongodb.ObjectId(id) }, { $set: { answer: answer } });
+        return data.modifiedCount > 0 ? true : false;
+    }
 }

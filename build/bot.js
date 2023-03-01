@@ -5,7 +5,9 @@ import user from './model/user.js';
 import db from './model/db.js';
 const bot = new grammy.Bot("5991825741:AAGzDG7sIV90vU_5vNSVmh0506gO8lNz53I");
 bot.api.setMyCommands([{
-        command: "start", description: "login with token..."
+        command: "start", description: "login with token"
+    }, {
+        command: "cancel", description: "cancel operation"
     }]);
 let users = [];
 const startTime = moment().utc();
@@ -56,6 +58,39 @@ bot.command("start", (ctx) => {
         }
         else {
             ctx.reply("You have logged in", { reply_markup: customKeyboard });
+        }
+    }
+});
+bot.command("answer", async (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+    if (userObj && userObj.admin) {
+        if (/^\w{24}$/g.test(ctx.match)) {
+            const ticket = await db.getTicket(ctx.match);
+            if (!ticket) {
+                ctx.reply("Can not find this ticket!");
+            }
+            else if (ticket.answer !== "") {
+                ctx.reply("Ticket already answered!");
+            }
+            else {
+                ctx.reply(`"${ticket.message}"\n\nSend your answer:`);
+                userObj.status = `answer:${ctx.match}`;
+            }
+        }
+        else {
+            ctx.reply("Id is not valid!");
+        }
+    }
+    else {
+        ctx.reply("You dont have permission to answer a ticket!");
+    }
+});
+bot.command("cancel", (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+    if (userObj) {
+        if (userObj.status !== "") {
+            userObj.status = "";
+            ctx.reply("Cancelled!");
         }
     }
 });
@@ -202,12 +237,12 @@ bot.hears("users list", async (ctx) => {
                 if (moment(u.expiry_date).isBefore(moment.now())) {
                     data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
 ⌛️expires in: expired!
-⚙️Port: ${u.configs[0].port}\n\n`;
+⚙️Host: ${u.configs[0].host}\n\n`;
                 }
                 else {
                     data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
 ⌛️expires in: ${moment(u.expiry_date).fromNow(true)}
-⚙️Port: ${u.configs[0].port}\n\n`;
+⚙️Host: ${u.configs[0].host}\n\n`;
                 }
             }
             const pagination = new grammy.InlineKeyboard()
@@ -306,12 +341,12 @@ bot.callbackQuery(/page(\d)+/, async (ctx) => {
             if (moment(u.expiry_date).isBefore(moment.now())) {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
 ⌛️expires in: expired!
-⚙️Port: ${u.configs[0].port}\n\n`;
+⚙️Host: ${u.configs[0].host}\n\n`;
             }
             else {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
 ⌛️expires in: ${moment(u.expiry_date).fromNow(true)}
-⚙️Port: ${u.configs[0].port}\n\n`;
+⚙️Host: ${u.configs[0].host}\n\n`;
             }
         }
         const pagination = new grammy.InlineKeyboard()
@@ -321,20 +356,6 @@ bot.callbackQuery(/page(\d)+/, async (ctx) => {
     }
     else {
         ctx.editMessageText(`📜Page${page} is empty!`, { reply_markup: pagination });
-    }
-});
-bot.callbackQuery("answer", (ctx) => {
-    let userObj;
-    ctx.chat && (userObj = getChatObject(ctx.chat.id));
-    if (userObj && userObj.admin) {
-        const token = ctx.message?.text?.slice(27, 63);
-        if (token) {
-            ctx.reply("Send your answer:");
-            userObj.status = `answer:${token}`;
-        }
-    }
-    else {
-        ctx.reply("You do not have permission for answer a ticket!");
     }
 });
 //!----------------------events----------------------!//
@@ -477,24 +498,28 @@ bot.on("message", async (ctx) => {
                     ids.push(i.chatId);
                 }
             }
+            const ticketId = await db.addTicket(user.token, ctx.chat.id, ctx.message.text);
             ctx.api.sendMessage(ids[Math.floor(Math.random() * ids.length)], `You have a new ticket from <span class="tg-spoiler">${user.token}</span>:\n
-${ctx.message.text}`, {
-                parse_mode: "HTML",
-                reply_markup: new grammy.InlineKeyboard()
-                    .text("answer", "answer")
+${ctx.message.text}\n
+Send <code>/answer ${ticketId}</code> to answer`, {
+                parse_mode: "HTML"
             });
+            ctx.reply("Ticket sent!");
         }
         user.status = "";
     }
-    else if (user && user.token && user.admin && /answer:\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(user.status)) {
-        const token = user.status.slice(7);
-        for (let i of users) {
-            if (i.token === token) {
-                ctx.api.sendMessage(i.chatId, `The admin has answered your question:\n
-${ctx.message.text}`);
+    else if (user && user.token && user.admin && /^answer:\w{24}$/g.test(user.status)) {
+        if (ctx.message.text) {
+            if (ctx.message.text.length > 10) {
+                const ticket = await db.getTicket(user.status.slice(7));
+                ctx.api.sendMessage(ticket.chat_id, `Admin answered your ticket:\n\n${ctx.message.text}`);
+                await db.answerTicket(ticket._id, ctx.message.text);
+                user.status = "";
+            }
+            else {
+                ctx.reply("Your answer should be at least 10 character.try again:");
             }
         }
-        user.status = "";
     }
 });
 bot.on("my_chat_member", async (ctx) => {
