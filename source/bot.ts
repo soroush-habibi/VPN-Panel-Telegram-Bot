@@ -1,11 +1,17 @@
 import grammy from 'grammy';
 import qrImage from 'qr-image';
 import moment from 'moment';
+import 'dotenv/config';
 
 import user from './model/user.js';
 import db from './model/db.js';
 
-const bot = new grammy.Bot("5991825741:AAGzDG7sIV90vU_5vNSVmh0506gO8lNz53I");
+let bot: grammy.Bot;
+if (process.env.BOT_TOKEN) {
+    bot = new grammy.Bot(process.env.BOT_TOKEN);
+} else {
+    process.exit(1);
+}
 
 bot.api.setMyCommands([{
     command: "start", description: "login with token"

@@ -12,7 +12,7 @@
     "url": "git+https://github.com/soroush-habibi/VPN-Panel-Telegram-Bot.git"
   },
   "keywords": [
-    "telegam",
+    "telegram",
     "bot",
     "vpn",
     "node",
@@ -27,6 +27,7 @@
   "homepage": "https://github.com/soroush-habibi/VPN-Panel-Telegram-Bot#readme",
   "dependencies": {
     "@types/qr-image": "^3.2.5",
+    "dotenv": "^16.0.3",
     "grammy": "^1.14.1",
     "moment": "^2.29.4",
     "mongodb": "^5.0.1",
