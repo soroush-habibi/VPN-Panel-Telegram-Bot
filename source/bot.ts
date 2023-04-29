@@ -1,6 +1,8 @@
 import grammy from 'grammy';
 import qrImage from 'qr-image';
 import moment from 'moment';
+import axios from 'axios';
+import inquirer from 'inquirer';
 import 'dotenv/config';
 
 import user from './model/user.js';
@@ -20,6 +22,7 @@ bot.api.setMyCommands([{
 }]);
 
 let users: user[] = [];
+let ips: string[] = [];
 
 const startTime = moment().utc();
 
@@ -626,16 +629,35 @@ bot.catch((err) => {
 
 //!----------------------launch----------------------!//
 
-db.connect(async (client) => {
-    const sessions = await db.getSessions();
-
-    for (let i of sessions) {
-        const userObj = new user(i.chat_id);
-        userObj.token = i.token;
-        userObj.admin = i.admin;
-        users.push(userObj);
+inquirer.prompt([
+    {
+        name: "ips",
+        message: "Enter servers ip:",
+        type: "editor",
+        validate: (input: string) => {
+            const ips = input.trim().split("\n");
+            for (let i of ips) {
+                if (!(/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/).test(i)) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
+]).then((value) => {
+    ips = value.ips.trim().split("\n");
 
-    client.close();
-    bot.start();
+    db.connect(async (client) => {
+        const sessions = await db.getSessions();
+
+        for (let i of sessions) {
+            const userObj = new user(i.chat_id);
+            userObj.token = i.token;
+            userObj.admin = i.admin;
+            users.push(userObj);
+        }
+
+        client.close();
+        bot.start();
+    });
 });

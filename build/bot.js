@@ -1,15 +1,24 @@
 import grammy from 'grammy';
 import qrImage from 'qr-image';
 import moment from 'moment';
+import inquirer from 'inquirer';
+import 'dotenv/config';
 import user from './model/user.js';
 import db from './model/db.js';
-const bot = new grammy.Bot("5991825741:AAGzDG7sIV90vU_5vNSVmh0506gO8lNz53I");
+let bot;
+if (process.env.BOT_TOKEN) {
+    bot = new grammy.Bot(process.env.BOT_TOKEN);
+}
+else {
+    process.exit(1);
+}
 bot.api.setMyCommands([{
         command: "start", description: "login with token"
     }, {
         command: "cancel", description: "cancel operation"
     }]);
 let users = [];
+let ips = [];
 const startTime = moment().utc();
 let globalStatus = `Main server: No Issues🟢
 CDN: Minor Issues🟠
@@ -597,14 +606,32 @@ bot.catch((err) => {
     console.log(err.message);
 });
 //!----------------------launch----------------------!//
-db.connect(async (client) => {
-    const sessions = await db.getSessions();
-    for (let i of sessions) {
-        const userObj = new user(i.chat_id);
-        userObj.token = i.token;
-        userObj.admin = i.admin;
-        users.push(userObj);
+inquirer.prompt([
+    {
+        name: "ips",
+        message: "Enter servers ip:",
+        type: "editor",
+        validate: (input) => {
+            const ips = input.trim().split("\n");
+            for (let i of ips) {
+                if (!(/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/).test(i)) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
-    client.close();
-    bot.start();
+]).then((value) => {
+    ips = value.ips.trim().split("\n");
+    db.connect(async (client) => {
+        const sessions = await db.getSessions();
+        for (let i of sessions) {
+            const userObj = new user(i.chat_id);
+            userObj.token = i.token;
+            userObj.admin = i.admin;
+            users.push(userObj);
+        }
+        client.close();
+        bot.start();
+    });
 });

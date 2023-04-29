@@ -5,7 +5,8 @@
   "main": "bot.js",
   "type": "module",
   "scripts": {
-    "start": "node --watch ./build/bot.js"
+    "start": "node --watch ./build/bot.js",
+    "start-api": "node --watch ./build/nodeApi/app.js"
   },
   "repository": {
     "type": "git",
@@ -26,9 +27,12 @@
   },
   "homepage": "https://github.com/soroush-habibi/VPN-Panel-Telegram-Bot#readme",
   "dependencies": {
+    "@types/inquirer": "^9.0.3",
     "@types/qr-image": "^3.2.5",
+    "axios": "^1.4.0",
     "dotenv": "^16.0.3",
     "grammy": "^1.14.1",
+    "inquirer": "^9.2.0",
     "moment": "^2.29.4",
     "mongodb": "^5.0.1",
     "qr-image": "^3.2.0"

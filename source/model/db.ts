@@ -16,7 +16,6 @@ interface config {
     tls: string,
     type: string,
     v: string
-
 }
 
 interface sub {
