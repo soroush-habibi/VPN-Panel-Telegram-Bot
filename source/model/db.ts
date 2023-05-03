@@ -14,7 +14,9 @@ interface config {
     sni: string,
     tls: string,
     type: string,
-    v: string
+    v: string,
+    rowId?: string,
+    expiryTime?: string
 }
 
 interface session {
@@ -111,7 +113,9 @@ export default class db {
                         sni: "",
                         tls: "",
                         type: "none",
-                        v: "2"
+                        v: "2",
+                        rowId: obj.id,
+                        expiryTime: obj.expiryTime
                     }
 
                     return result;
@@ -122,7 +126,7 @@ export default class db {
         return undefined;
     }
 
-    static async getConfigs(ip: string): Promise<config[]> {
+    static async getConfigs(ip: string, page: number): Promise<config[]> {
         const session = this.ids.find((value) => {
             if (value.ip === ip) {
                 return true;
@@ -157,10 +161,18 @@ export default class db {
                 sni: "",
                 tls: "",
                 type: "none",
-                v: "2"
+                v: "2",
+                rowId: obj.id,
+                expiryTime: obj.expiryTime
             }
 
             result.push(config);
+        }
+
+        if (result.length > (page - 1) * 5) {
+            return result.slice((page - 1) * 5, page * 5);
+        } else {
+            return [];
         }
 
         return result;
@@ -259,8 +271,9 @@ export default class db {
         }
     }
 
-    static async updateExpiryDate(id: number, token: string, newDate: Date): Promise<boolean> {
+    static async updateExpiryDate(token: string, newDate: Date): Promise<boolean> {
         const config = await this.getConfig(token);
+        const id = config?.rowId;
 
         if (!config) {
             throw new Error("Token not found!")
@@ -312,7 +325,7 @@ export default class db {
           }`);
 
         try {
-            const request = await axios.post(`http://${session.sessionId}:2080/xui/inbound/update/${id}`, {
+            const request = await axios.post(`http://${session.ip}:2080/xui/inbound/update/${id}`, {
                 formData
             }, {
                 headers: {

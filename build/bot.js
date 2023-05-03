@@ -34,14 +34,13 @@ const customKeyboard = new grammy.Keyboard()
     .resized();
 const adminCustomKeyboard = new grammy.Keyboard()
     .text("users list")
-    .text("add user").row()
-    .text("add config")
-    .text("remove config").row()
-    .text("change status")
-    .text("server status").row()
-    .text("stats")
-    .text("announce").row()
-    .text("update expiry date")
+    .text("add config").row()
+    .text("remove config")
+    .text("change status").row()
+    .text("server status")
+    .text("stats").row()
+    .text("announce")
+    .text("update expiry date").row()
     .text("log out")
     .resized();
 //!----------------------middlewares----------------------!//
@@ -55,12 +54,12 @@ bot.use((ctx, next) => {
 bot.command("start", (ctx) => {
     let userObj = getChatObject(ctx.chat.id);
     if (!userObj) {
-        ctx.reply("Welcome please enter your login token:", { reply_markup: { remove_keyboard: true } });
+        ctx.reply("Welcome please enter your config:", { reply_markup: { remove_keyboard: true } });
         const newUser = new user(ctx.chat.id);
         users.push(newUser);
     }
     else if (!userObj.token) {
-        ctx.reply("Please enter your token:", { reply_markup: { remove_keyboard: true } });
+        ctx.reply("Please enter your config:", { reply_markup: { remove_keyboard: true } });
     }
     else if (userObj.token) {
         if (userObj.admin) {
@@ -120,22 +119,13 @@ bot.hears("get config", async (ctx) => {
         ctx.reply("You are admin");
     }
     else if (userObj && userObj.token) {
-        const sub = await db.getSub(userObj.token);
-        if (sub) {
-            if (sub.configs.length == 0) {
-                ctx.reply("You do not have any configs.\nIf your subscription did not expires please contact support!");
-            }
-            else {
-                const inlineKeyboard = new grammy.InlineKeyboard();
-                for (let i = 0; i < sub.configs.length; i++) {
-                    inlineKeyboard.text(`Config${i + 1}`, `config${i + 1}`);
-                }
-                inlineKeyboard.row();
-                for (let i = 0; i < sub.configs.length; i++) {
-                    inlineKeyboard.text(`QR${i + 1}`, `qr${i + 1}`);
-                }
-                ctx.reply("Choose your config:", { reply_markup: inlineKeyboard });
-            }
+        const config = await db.checkConfig(userObj.token);
+        if (config) {
+            const inlineKeyboard = new grammy.InlineKeyboard();
+            inlineKeyboard.text(`Config`, `config`);
+            inlineKeyboard.row();
+            inlineKeyboard.text(`QR`, `qr`);
+            ctx.reply("Choose your config:", { reply_markup: inlineKeyboard });
         }
         else {
             ctx.reply("Can not find your account!");
@@ -183,9 +173,19 @@ bot.hears("profile", async (ctx) => {
         ctx.reply("You are admin");
     }
     else if (userObj && userObj.token) {
-        const dbUser = await db.getSub(userObj.token);
-        const endTime = moment(dbUser?.expiry_date);
-        if (endTime.isBefore(moment.now())) {
+        const config = await db.getConfig(userObj.token);
+        let endTime;
+        if (!config?.expiryTime || config.expiryTime === "0") {
+            endTime = null;
+        }
+        else {
+            endTime = moment(config?.expiryTime);
+        }
+        if (!endTime) {
+            ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
+⌛️expires in: ♾`, { parse_mode: "HTML" });
+        }
+        else if (endTime.isBefore(moment.now())) {
             ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
 ⌛️expires in: expired!`, { parse_mode: "HTML" });
         }
@@ -211,7 +211,11 @@ bot.hears("announce", (ctx) => {
 bot.hears("add config", (ctx) => {
     let userObj = getChatObject(ctx.chat.id);
     if (userObj && userObj.admin) {
-        ctx.reply("send user token and your config in base64 form in separate lines:");
+        ctx.reply(`Send config data in this format(separate lines):
+name of the config
+ip
+expiry time
+port`);
         userObj.status = "add config";
     }
     else {
@@ -221,50 +225,23 @@ bot.hears("add config", (ctx) => {
 bot.hears("remove config", (ctx) => {
     let userObj = getChatObject(ctx.chat.id);
     if (userObj && userObj.admin) {
-        ctx.reply("send user token and your config in base64 form in separate lines:");
+        ctx.reply(`Send data in this format(separate lines):
+ip
+id`);
         userObj.status = "remove config";
     }
     else {
         ctx.reply("You dont have permission to remove config");
     }
 });
-bot.hears("add user", (ctx) => {
-    let userObj = getChatObject(ctx.chat.id);
-    if (userObj && userObj.admin) {
-        ctx.reply("send user token, expiry date and admin boolean in separate lines:");
-        userObj.status = "add user";
-    }
-    else {
-        ctx.reply("You dont have permission to add user");
-    }
-});
 bot.hears("users list", async (ctx) => {
     let userObj = getChatObject(ctx.chat.id);
     if (userObj && userObj.admin) {
-        let page = 1;
-        const dbUsers = await db.getSubs(page);
-        let data = `📜Page${page}\n\n`;
-        if (dbUsers) {
-            for (let u of dbUsers) {
-                if (moment(u.expiry_date).isBefore(moment.now())) {
-                    data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
-⌛️expires in: expired!
-⚙️Host: ${u.configs[0].host}\n\n`;
-                }
-                else {
-                    data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
-⌛️expires in: ${moment(u.expiry_date).fromNow(true)}
-⚙️Host: ${u.configs[0].host}\n\n`;
-                }
-            }
-            const pagination = new grammy.InlineKeyboard()
-                .text("<", "page" + String(page - 1))
-                .text(">", "page" + String(page + 1));
-            ctx.reply(data, { reply_markup: pagination, parse_mode: "HTML" });
+        const inlineKeyboard = new grammy.InlineKeyboard();
+        for (let i of ips) {
+            inlineKeyboard.text(i, i);
         }
-        else {
-            ctx.reply("List is empty!");
-        }
+        ctx.reply("Choose a server:", { reply_markup: inlineKeyboard });
     }
     else {
         ctx.reply("You dont have permission to add user");
@@ -304,48 +281,74 @@ bot.hears("update expiry date", (ctx) => {
     }
 });
 //!----------------------callback queries----------------------!//
-bot.callbackQuery(/(config)\d+/, async (ctx) => {
+bot.callbackQuery("config", async (ctx) => {
     let userObj;
     ctx.chat && (userObj = getChatObject(ctx.chat.id));
     if (userObj && userObj.admin) {
         ctx.reply("You are admin");
     }
     else if (ctx.chat) {
-        let userObj = getChatObject(ctx.chat.id);
-        if (userObj && await db.checkSub(userObj.token)) {
-            const sub = await db.getSub(userObj.token);
-            if (sub) {
-                const num = parseInt(ctx.callbackQuery.data.slice(6));
-                const buff = new Buffer(JSON.stringify(sub.configs[num - 1]));
-                ctx.reply("vmess://" + buff.toString("base64"));
+        if (userObj && await db.checkConfig(userObj.token)) {
+            const config = await db.getConfig(userObj.token);
+            if (config) {
+                delete config.expiryTime;
+                delete config.rowId;
+                ctx.reply("vmess://" + Buffer.from(JSON.stringify(config), 'utf-8').toString("base64"));
                 await db.clickConfig();
             }
         }
         await ctx.answerCallbackQuery();
     }
 });
-bot.callbackQuery(/(qr)\d+/, async (ctx) => {
+bot.callbackQuery("qr", async (ctx) => {
     let userObj;
     ctx.chat && (userObj = getChatObject(ctx.chat.id));
     if (userObj && userObj.admin) {
         ctx.reply("You are admin");
     }
     else if (ctx.chat) {
-        let userObj = getChatObject(ctx.chat.id);
-        if (userObj && await db.checkSub(userObj.token)) {
-            const sub = await db.getSub(userObj.token);
-            if (sub) {
-                const num = parseInt(ctx.callbackQuery.data.slice(2));
-                const buff = new Buffer(JSON.stringify(sub.configs[num - 1]));
-                ctx.replyWithPhoto(new grammy.InputFile(qrImage.imageSync("vmess://" + buff.toString("base64"), { type: "png" })));
+        if (userObj && await db.checkConfig(userObj.token)) {
+            const config = await db.getConfig(userObj.token);
+            if (config) {
+                delete config.expiryTime;
+                delete config.rowId;
+                ctx.replyWithPhoto(new grammy.InputFile(qrImage.imageSync("vmess://" + Buffer.from(JSON.stringify(config), 'utf-8').toString("base64"), { type: "png" })));
                 await db.clickQr();
             }
         }
         await ctx.answerCallbackQuery();
     }
 });
-bot.callbackQuery(/page(\d)+/, async (ctx) => {
-    const page = parseInt(ctx.callbackQuery.data.slice(4));
+bot.callbackQuery(/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/, async (ctx) => {
+    const ip = ctx.callbackQuery.data;
+    let page = 1;
+    const configs = await db.getConfigs(ip, page);
+    let data = `📜Page${page}\n🌐IP:${ip}\n\n`;
+    if (configs.length) {
+        for (let i of configs) {
+            if (moment(i.expiryTime).isBefore(moment.now())) {
+                data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
+⌛️Expires in: expired!
+⚙️Port: ${i.port}\n\n`;
+            }
+            else {
+                data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
+⌛️Expires in: ${moment(i.expiryTime).fromNow(true)}
+⚙️Port: ${i.port}\n\n`;
+            }
+        }
+        const pagination = new grammy.InlineKeyboard()
+            .text("<", "page" + String(page - 1) + " " + ip)
+            .text(">", "page" + String(page + 1) + " " + ip);
+        ctx.reply(data, { reply_markup: pagination, parse_mode: "HTML" });
+    }
+    else {
+        ctx.reply("List is empty!");
+    }
+});
+bot.callbackQuery(/page(\d)+ (.)+/, async (ctx) => {
+    const page = parseInt(ctx.callbackQuery.data.split(" ")[0].slice(4));
+    const ip = ctx.callbackQuery.data.split(" ")[1];
     let pagination;
     if (page == 0) {
         ctx.answerCallbackQuery({ text: "We dont have zero page.sorry😆" });
@@ -353,27 +356,24 @@ bot.callbackQuery(/page(\d)+/, async (ctx) => {
     }
     else {
         pagination = new grammy.InlineKeyboard()
-            .text("<", "page" + String(page - 1))
-            .text(">", "page" + String(page + 1));
+            .text("<", "page" + String(page - 1) + " " + ip)
+            .text(">", "page" + String(page + 1) + " " + ip);
     }
-    const dbUsers = await db.getSubs(page);
-    let data = `📜Page${page}\n\n`;
-    if (dbUsers?.length) {
-        for (let u of dbUsers) {
-            if (moment(u.expiry_date).isBefore(moment.now())) {
-                data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
-⌛️expires in: expired!
-⚙️Host: ${u.configs[0].host}\n\n`;
+    const configs = await db.getConfigs(ip, page);
+    let data = `📜Page${page}\n🌐IP:${ip}\n\n`;
+    if (configs.length) {
+        for (let i of configs) {
+            if (moment(i.expiryTime).isBefore(moment.now())) {
+                data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
+⌛️Expires in: expired!
+⚙️Port: ${i.port}\n\n`;
             }
             else {
-                data += `🔒<b>Token: </b><span class="tg-spoiler">${u.token}</span>
-⌛️expires in: ${moment(u.expiry_date).fromNow(true)}
-⚙️Host: ${u.configs[0].host}\n\n`;
+                data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
+⌛️Expires in: ${moment(i.expiryTime).fromNow(true)}
+⚙️Port: ${i.port}\n\n`;
             }
         }
-        const pagination = new grammy.InlineKeyboard()
-            .text("<", "page" + String(page - 1))
-            .text(">", "page" + String(page + 1));
         ctx.editMessageText(data, { reply_markup: pagination, parse_mode: "HTML" });
     }
     else {
@@ -384,23 +384,32 @@ bot.callbackQuery(/page(\d)+/, async (ctx) => {
 bot.on("message", async (ctx) => {
     const user = getChatObject(ctx.chat.id);
     if (user && !user.token && ctx.message.text) {
-        if (!/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(ctx.message.text.trim())) {
-            ctx.reply("Token is invalid", { reply_markup: { remove_keyboard: true } });
-        }
-        else if (!(await db.checkSub(ctx.message.text.trim()))) {
-            ctx.reply("Can not find token in database!", { reply_markup: { remove_keyboard: true } });
-        }
-        else {
-            const dbUser = await db.getSub(ctx.message.text.trim());
-            dbUser?.admin && (user.admin = true);
-            if (user.admin) {
-                ctx.reply("done!", { reply_markup: adminCustomKeyboard });
+        try {
+            const config = JSON.parse(Buffer.from(ctx.message.text.trim().slice(8), "base64").toString("utf-8"));
+            if (config.ps) {
+                if (!/\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(config.id)) {
+                    ctx.reply("Token is invalid", { reply_markup: { remove_keyboard: true } });
+                }
+                else if (!(await db.checkConfig(config.id))) {
+                    ctx.reply("Can not find config in database!", { reply_markup: { remove_keyboard: true } });
+                }
+                else {
+                    if (user.admin) {
+                        ctx.reply("done!", { reply_markup: adminCustomKeyboard });
+                    }
+                    else {
+                        ctx.reply("done!", { reply_markup: customKeyboard });
+                    }
+                    user.token = config.id;
+                    await db.addSession(ctx.chat.id, config.id, user.admin);
+                }
             }
             else {
-                ctx.reply("done!", { reply_markup: customKeyboard });
+                ctx.reply("Config is invalid");
             }
-            user.token = ctx.message.text.trim();
-            await db.addSession(ctx.chat.id, ctx.message.text.trim(), user.admin);
+        }
+        catch (e) {
+            ctx.reply("Config is invalid");
         }
     }
     else if (user && user.token && user.admin && user.status === "announce") {
@@ -420,83 +429,41 @@ bot.on("message", async (ctx) => {
     }
     else if (user && user.token && user.admin && user.status === "add config") {
         if (ctx.message.text) {
-            const userToken = ctx.message.text.split("\n")[0];
-            let vmess = ctx.message.text.split("\n")[1];
-            if (/vmess:\/\/(.+)/.test(vmess) && /\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(userToken)) {
-                vmess = vmess.slice(8);
-                const buff = new Buffer(vmess, "base64");
-                const config = JSON.parse(buff.toString('ascii'));
-                const dbUser = await db.getSub(userToken);
-                if (dbUser?.admin) {
-                    ctx.reply("You can not add config to admin");
-                }
-                else {
-                    const result = await db.addConfig(userToken, config);
+            try {
+                const remark = ctx.message.text.split("\n")[0];
+                const ip = ctx.message.text.split("\n")[1];
+                const expiryTime = moment(ctx.message.text.split("\n")[2]);
+                const port = Number(ctx.message.text.split("\n")[3]);
+                if (remark && (/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/).test(ip) && expiryTime.isValid() && port) {
+                    const result = await db.addConfig(remark, ip, expiryTime.toDate(), port);
                     if (result) {
                         ctx.reply("Config added successfully!");
                     }
                     else {
-                        ctx.reply("Can not find user!");
+                        ctx.reply("Operation failed!");
                     }
                 }
+                else {
+                    ctx.reply("Input data is invalid!");
+                }
             }
-            else {
-                ctx.reply("Invalid input");
+            catch (e) {
+                ctx.reply("Input data is invalid!");
             }
         }
         user.status = "";
     }
     else if (user && user.token && user.admin && user.status === "remove config") {
         if (ctx.message.text) {
-            const userToken = ctx.message.text.split("\n")[0];
-            let vmess = ctx.message.text.split("\n")[1];
-            if (/vmess:\/\/(.+)/.test(vmess) && /\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(userToken)) {
-                vmess = vmess.slice(8);
-                const buff = new Buffer(vmess, "base64");
-                const config = JSON.parse(buff.toString('ascii'));
-                const dbUser = await db.getSub(userToken);
-                if (dbUser?.admin) {
-                    ctx.reply("You can not add config to admin");
-                }
-                else {
-                    const result = await db.removeConfig(userToken, config);
-                    if (result) {
-                        ctx.reply("Config removed successfully!");
-                    }
-                    else {
-                        ctx.reply("Can not find user or config!");
-                    }
-                }
-            }
-            else {
-                ctx.reply("Invalid input");
-            }
-        }
-        user.status = "";
-    }
-    else if (user && user.token && user.admin && user.status === "add user") {
-        if (ctx.message.text) {
             try {
-                const userToken = ctx.message.text.split("\n")[0];
-                const expiryDate = moment(ctx.message.text.split("\n")[1]);
-                const admin = ctx.message.text.split("\n")[2].toLowerCase() === "true" ? true : false;
-                if (expiryDate.isValid() && /\w{8}-\w{4}-\w{4}-\w{4}-\w{12}/.test(userToken)) {
-                    let br = false;
-                    const result = await db.addUser(userToken, expiryDate.toDate(), admin).catch(e => {
-                        ctx.reply("Token exists already");
-                        br = true;
-                    });
-                    if (!br) {
-                        if (result) {
-                            ctx.reply("User added successfully!");
-                        }
-                        else {
-                            ctx.reply("user insertion failed!");
-                        }
-                    }
+                const ip = ctx.message.text.split("\n")[0];
+                const id = Number(ctx.message.text.split("\n")[1]);
+                const result = await db.removeConfig(ip, id);
+                if (result) {
+                    ctx.reply("Config removed successfully!");
                 }
                 else {
-                    ctx.reply("Invalid input");
+                    ctx.reply("Not found!");
                 }
             }
             catch (e) {
@@ -559,7 +526,7 @@ Send <code>/answer ${ticketId}</code> to answer`, {
                         ctx.reply("Changed successfully!");
                     }
                     else {
-                        ctx.reply("Can not find user in database!");
+                        ctx.reply("Can not find token in database!");
                     }
                 }
                 else {
