@@ -49,7 +49,7 @@ bot.use((ctx, next) => {
     db.connect(async (client) => {
         await next();
         client.close();
-    });
+    }, ips);
 });
 //!----------------------commands----------------------!//
 bot.command("start", (ctx) => {
@@ -633,5 +633,5 @@ inquirer.prompt([
         }
         client.close();
         bot.start();
-    });
+    }, ips);
 });

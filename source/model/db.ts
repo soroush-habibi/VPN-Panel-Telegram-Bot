@@ -1,10 +1,9 @@
 import mongodb from 'mongodb';
+import axios from 'axios';
 
 interface config {
     add: string,
     aid: string,
-    alpn: string,
-    fp: string,
     host: string,
     id: string,
     net: string,
@@ -16,13 +15,6 @@ interface config {
     tls: string,
     type: string,
     v: string
-}
-
-interface sub {
-    token: string,
-    expiry_date: Date,
-    admin: boolean,
-    configs: config[]
 }
 
 interface session {
@@ -44,40 +36,297 @@ interface ticket {
     answer: string
 }
 
+interface loginSessionId {
+    ip: string,
+    sessionId: any
+}
+
 export default class db {
     private static client: mongodb.MongoClient;
-    static async connect(func: (client: mongodb.MongoClient) => void) {
-        const client = await mongodb.MongoClient.connect("mongodb://soroush:Q631YNHEf3SuD@127.0.0.1:27017");
+    private static ids: loginSessionId[];
+    static async connect(func: (client: mongodb.MongoClient) => void, ips: string[]) {
+        const client = await mongodb.MongoClient.connect(process.env.DB_URL || "mongodb://127.0.0.1:27017");
 
         this.client = client;
+
+        this.ids = [];
+
+        for (let ip of ips) {
+            const request = await axios.post(`http://${ip}:2080/login`, { username: "arp", password: "arp" });
+            if (request.headers['set-cookie']) {
+                const result: loginSessionId = {
+                    ip: ip,
+                    sessionId: request.headers['set-cookie']
+                }
+                this.ids.push(result);
+            }
+        }
 
         func(client);
     }
 
-    static async checkSub(token: string): Promise<boolean> {
-        const data = await this.client.db("vpnBot").collection("subs").findOne({ token: token });
+    static async checkConfig(token: string): Promise<boolean> {
+        for (let id of this.ids) {
+            const request = await axios.post(`http://${id.ip}:2080/xui/inbound/list`, undefined, {
+                headers: {
+                    cookie: id.sessionId,
+                }
+            });
 
-        return data ? true : false;
+            for (let obj of request.data.obj) {
+                const t = JSON.parse(obj.settings).clients[0].id;
+
+                if (token === t) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
 
-    static async getSub(token: string): Promise<sub | undefined> {
-        const data = await this.client.db("vpnBot").collection<sub>("subs").findOne({ token: token }, { projection: { _id: 0 } });
+    static async getConfig(token: string): Promise<config | undefined> {
+        for (let id of this.ids) {
+            const request = await axios.post(`http://${id.ip}:2080/xui/inbound/list`, undefined, {
+                headers: {
+                    cookie: id.sessionId,
+                }
+            });
 
-        if (data) {
-            return data;
-        } else {
-            return undefined;
+            for (let obj of request.data.obj) {
+                const t = JSON.parse(obj.settings).clients[0].id;
+
+                if (token === t) {
+                    const result: config = {
+                        add: id.ip,
+                        aid: "0",
+                        host: "",
+                        id: t,
+                        net: "ws",
+                        path: "/",
+                        port: String(obj.port),
+                        ps: obj.remark,
+                        scy: "auto",
+                        sni: "",
+                        tls: "",
+                        type: "none",
+                        v: "2"
+                    }
+
+                    return result;
+                }
+            }
+        }
+
+        return undefined;
+    }
+
+    static async getConfigs(ip: string): Promise<config[]> {
+        const session = this.ids.find((value) => {
+            if (value.ip === ip) {
+                return true;
+            }
+        });
+
+        if (!session) {
+            throw new Error("IP is not valid!");
+        }
+
+        const request = await axios.post(`http://${ip}:2080/xui/inbound/list`, undefined, {
+            headers: {
+                cookie: session.sessionId,
+            }
+        });
+
+        let result: config[] = [];
+
+        for (let obj of request.data.obj) {
+            const t = JSON.parse(obj.settings).clients[0].id;
+
+            const config: config = {
+                add: ip,
+                aid: "0",
+                host: "",
+                id: t,
+                net: "ws",
+                path: "/",
+                port: String(obj.port),
+                ps: obj.remark,
+                scy: "auto",
+                sni: "",
+                tls: "",
+                type: "none",
+                v: "2"
+            }
+
+            result.push(config);
+        }
+
+        return result;
+    }
+
+    static async addConfig(remark: string, ip: string, expiryTime: Date, port: Number): Promise<boolean> {
+        const session = this.ids.find((value) => {
+            if (value.ip === ip) {
+                return true;
+            }
+        });
+
+        if (!session) {
+            throw new Error("IP is not valid!");
+        }
+
+        const formData = new FormData();
+        formData.append("up", "0");
+        formData.append("down", "0");
+        formData.append("total", "0");
+        formData.append("remark", remark);
+        formData.append("enable", "true");
+        formData.append("expiryTime", String(expiryTime.getTime()));
+        formData.append("listen", "");
+        formData.append("port", String(port));
+        formData.append("protocol", "vmess");
+        formData.append("settings", `{
+            "clients": [
+              {
+                "id": "${crypto.randomUUID()}",
+                "alterId": 0
+              }
+            ],
+            "disableInsecureEncryption": false
+          }`);
+        formData.append("streamSettings", `{
+            "network": "ws",
+            "security": "none",
+            "wsSettings": {
+              "path": "/",
+              "headers": {}
+            }
+          }`);
+        formData.append("sniffing", `{
+            "enabled": true,
+            "destOverride": [
+              "http",
+              "tls"
+            ]
+          }`);
+
+        try {
+            const request = await axios.post(`http://${session.ip}:2080/xui/inbound/add`, {
+                formData
+            }, {
+                headers: {
+                    cookie: session.sessionId,
+                }
+            });
+
+            if (request.data.success) {
+                return true;
+            } else {
+                throw new Error(request.data.msg)
+            }
+        } catch (e) {
+            return false;
         }
     }
 
-    static async getSubs(page: number): Promise<sub[] | undefined> {
-        const data = await this.client.db("vpnBot").collection<sub>("subs").find({ admin: false }, { projection: { _id: 0 } }).skip((page - 1) * 5).limit(5).toArray();
+    static async removeConfig(ip: string, id: number): Promise<boolean> {
+        const session = this.ids.find((value) => {
+            if (value.ip === ip) {
+                return true;
+            }
+        })
 
-        if (data) {
-            return data;
-        } else {
-            return undefined;
+        if (!session) {
+            throw new Error("IP is not valid!");
+        }
+
+        try {
+            const request = await axios.post(`http://${session.ip}:2080/xui/inbound/del/${id}`, undefined, {
+                headers: {
+                    cookie: session.sessionId,
+                }
+            });
+
+            if (request.data.success) {
+                return true;
+            } else {
+                throw new Error(request.data.msg)
+            }
+        } catch (e) {
+            return false;
+        }
+    }
+
+    static async updateExpiryDate(id: number, token: string, newDate: Date): Promise<boolean> {
+        const config = await this.getConfig(token);
+
+        if (!config) {
+            throw new Error("Token not found!")
+        }
+
+        const session = this.ids.find((value) => {
+            if (value.ip === config?.add) {
+                return true;
+            }
+        });
+
+        if (!session) {
+            throw new Error("IP is not valid!");
+        }
+
+        const formData = new FormData();
+        formData.append("up", "0");
+        formData.append("down", "0");
+        formData.append("total", "0");
+        formData.append("remark", config.ps || "undefined");
+        formData.append("enable", "true");
+        formData.append("expiryTime", String(newDate.getTime()));
+        formData.append("listen", "");
+        formData.append("port", config.port || "0");
+        formData.append("protocol", "vmess");
+        formData.append("settings", `{
+            "clients": [
+              {
+                "id": "${config.id}",
+                "alterId": 0
+              }
+            ],
+            "disableInsecureEncryption": false
+          }`);
+        formData.append("streamSettings", `{
+            "network": "ws",
+            "security": "none",
+            "wsSettings": {
+              "path": "/",
+              "headers": {}
+            }
+          }`);
+        formData.append("sniffing", `{
+            "enabled": true,
+            "destOverride": [
+              "http",
+              "tls"
+            ]
+          }`);
+
+        try {
+            const request = await axios.post(`http://${session.sessionId}:2080/xui/inbound/update/${id}`, {
+                formData
+            }, {
+                headers: {
+                    cookie: session.sessionId,
+                }
+            });
+
+            if (request.data.success) {
+                return true;
+            } else {
+                throw new Error(request.data.msg);
+            }
+        } catch (e) {
+            return false;
         }
     }
 
@@ -109,24 +358,6 @@ export default class db {
         return data;
     }
 
-    static async addConfig(token: string, config: object): Promise<boolean> {
-        const data = await this.client.db("vpnBot").collection("subs").updateOne({ token: token }, { $push: { configs: config } });
-
-        return data.modifiedCount > 0 ? true : false;
-    }
-
-    static async removeConfig(token: string, config: object): Promise<boolean> {
-        const data = await this.client.db("vpnBot").collection("subs").updateOne({ token: token }, { $pull: { configs: config } });
-
-        return data.modifiedCount > 0 ? true : false;
-    }
-
-    static async addUser(token: string, expiryDate: Date, admin: boolean): Promise<boolean> {
-        const data = await this.client.db("vpnBot").collection("subs").insertOne({ token: token, expiry_date: expiryDate, admin: admin, configs: [] });
-
-        return data.acknowledged;
-    }
-
     static async addTicket(token: string, chatId: number, message: string): Promise<string> {
         const data = await this.client.db("vpnBot").collection("tickets").insertOne({ token: token, chat_id: chatId, message: message, answer: "" });
 
@@ -141,12 +372,6 @@ export default class db {
 
     static async answerTicket(id: string, answer: string): Promise<boolean> {
         const data = await this.client.db("vpnBot").collection("tickets").updateOne({ _id: new mongodb.ObjectId(id) }, { $set: { answer: answer } });
-
-        return data.modifiedCount > 0 ? true : false;
-    }
-
-    static async updateExpiryDate(token: string, newDate: Date): Promise<boolean> {
-        const data = await this.client.db("vpnBot").collection("subs").updateOne({ token: token }, { $set: { expiry_date: newDate } });
 
         return data.modifiedCount > 0 ? true : false;
     }

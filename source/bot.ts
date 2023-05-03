@@ -1,7 +1,6 @@
 import grammy from 'grammy';
 import qrImage from 'qr-image';
 import moment from 'moment';
-import axios from 'axios';
 import inquirer from 'inquirer';
 import 'dotenv/config';
 
@@ -60,7 +59,7 @@ bot.use((ctx, next) => {
     db.connect(async (client) => {
         await next();
         client.close();
-    });
+    }, ips);
 });
 
 //!----------------------commands----------------------!//
@@ -659,5 +658,5 @@ inquirer.prompt([
 
         client.close();
         bot.start();
-    });
+    }, ips);
 });
