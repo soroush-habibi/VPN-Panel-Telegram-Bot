@@ -109,9 +109,8 @@ export default class db {
         else {
             return [];
         }
-        return result;
     }
-    static async addConfig(remark, ip, expiryTime, port) {
+    static async addConfig(remark, ip, expiryTime) {
         const session = this.ids.find((value) => {
             if (value.ip === ip) {
                 return true;
@@ -120,6 +119,8 @@ export default class db {
         if (!session) {
             throw new Error("IP is not valid!");
         }
+        const port = Math.floor((Math.random() * 64535) + 999);
+        const token = crypto.randomUUID();
         const formData = new FormData();
         formData.append("up", "0");
         formData.append("down", "0");
@@ -133,7 +134,7 @@ export default class db {
         formData.append("settings", `{
             "clients": [
               {
-                "id": "${crypto.randomUUID()}",
+                "id": "${token}",
                 "alterId": 0
               }
             ],
@@ -162,14 +163,14 @@ export default class db {
                 headers: { cookie: session.sessionId }
             });
             if (request.data.success) {
-                return true;
+                return { token: token, port: port };
             }
             else {
                 throw new Error(request.data.msg);
             }
         }
         catch (e) {
-            return false;
+            return undefined;
         }
     }
     static async removeConfig(ip, id) {

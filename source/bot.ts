@@ -229,8 +229,7 @@ bot.hears("add config", (ctx) => {
         ctx.reply(`Send config data in this format(separate lines):
 name of the config
 ip
-expiry time
-port`);
+expiry time`);
         userObj.status = "add config";
     } else {
         ctx.reply("You dont have permission to add config");
@@ -481,13 +480,30 @@ bot.on("message", async (ctx) => {
                 const remark: string = ctx.message.text.split("\n")[0];
                 const ip: string = ctx.message.text.split("\n")[1];
                 const expiryTime = moment(ctx.message.text.split("\n")[2]);
-                const port: number = Number(ctx.message.text.split("\n")[3]);
 
-                if (remark && (/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/).test(ip) && expiryTime.isValid() && port) {
-                    const result = await db.addConfig(remark, ip, expiryTime.toDate(), port);
+                if (remark && (/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/).test(ip) && expiryTime.isValid()) {
+                    const result = await db.addConfig(remark, ip, expiryTime.toDate());
 
                     if (result) {
                         ctx.reply("Config added successfully!");
+
+                        const resultConfig = {
+                            add: ip,
+                            aid: "0",
+                            host: "",
+                            id: result.token,
+                            net: "ws",
+                            path: "/",
+                            port: String(result.port),
+                            ps: remark,
+                            scy: "auto",
+                            sni: "",
+                            tls: "",
+                            type: "none",
+                            v: "2"
+                        }
+
+                        ctx.reply("vmess://" + Buffer.from(JSON.stringify(resultConfig), 'utf-8').toString("base64"));
                     } else {
                         ctx.reply("Operation failed!");
                     }

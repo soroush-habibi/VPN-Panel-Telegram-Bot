@@ -44,6 +44,11 @@ interface loginSessionId {
     sessionId: any
 }
 
+interface addConfig {
+    token: string,
+    port: number
+}
+
 export default class db {
     private static client: mongodb.MongoClient;
     private static ids: loginSessionId[];
@@ -175,11 +180,9 @@ export default class db {
         } else {
             return [];
         }
-
-        return result;
     }
 
-    static async addConfig(remark: string, ip: string, expiryTime: Date, port: Number): Promise<boolean> {
+    static async addConfig(remark: string, ip: string, expiryTime: Date): Promise<addConfig | undefined> {
         const session = this.ids.find((value) => {
             if (value.ip === ip) {
                 return true;
@@ -189,6 +192,10 @@ export default class db {
         if (!session) {
             throw new Error("IP is not valid!");
         }
+
+        const port = Math.floor((Math.random() * 64535) + 999);
+
+        const token = crypto.randomUUID();
 
         const formData = new FormData();
         formData.append("up", "0");
@@ -203,7 +210,7 @@ export default class db {
         formData.append("settings", `{
             "clients": [
               {
-                "id": "${crypto.randomUUID()}",
+                "id": "${token}",
                 "alterId": 0
               }
             ],
@@ -234,12 +241,12 @@ export default class db {
             });
 
             if (request.data.success) {
-                return true;
+                return { token: token, port: port };
             } else {
                 throw new Error(request.data.msg)
             }
         } catch (e) {
-            return false;
+            return undefined;
         }
     }
 
