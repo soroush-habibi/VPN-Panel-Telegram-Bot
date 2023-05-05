@@ -195,15 +195,15 @@ bot.hears("profile", async (ctx) => {
         }
         if (!endTime) {
             ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
-👤Name: ${config?.ps}
+👤Name: ${config?.ps} #️⃣${config?.rowId}
 ⌛️Expires in: ♾`, { parse_mode: "HTML" });
         } else if (endTime.isBefore(moment.now())) {
             ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
-👤Name: ${config?.ps}
+👤Name: ${config?.ps} #️⃣${config?.rowId}
 ⌛️Expires in: expired!`, { parse_mode: "HTML" });
         } else {
             ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
-👤Name: ${config?.ps}
+👤Name: ${config?.ps} #️⃣${config?.rowId}
 ⌛️Expires in: ${endTime.fromNow(true)}`, { parse_mode: "HTML" });
         }
     } else {
@@ -354,17 +354,17 @@ bot.callbackQuery(/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/, asy
             }
             if (!endTime) {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
-👤Name: ${i.ps}
+👤Name: ${i.ps} #️⃣${i.rowId}
 ⌛️Expires in: ♾
 ⚙️Port: ${i.port}\n\n`;
             } else if (moment(i.expiryTime).isBefore(moment.now())) {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
-👤Name: ${i.ps}
+👤Name: ${i.ps} #️⃣${i.rowId}
 ⌛️Expires in: expired!
 ⚙️Port: ${i.port}\n\n`;
             } else {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
-👤Name: ${i.ps}
+👤Name: ${i.ps} #️⃣${i.rowId}
 ⌛️Expires in: ${moment(i.expiryTime).fromNow(true)}
 ⚙️Port: ${i.port}\n\n`;
             }
@@ -407,17 +407,17 @@ bot.callbackQuery(/page(\d)+ (.)+/, async (ctx) => {
             }
             if (!endTime) {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
-👤Name: ${i.ps}
+👤Name: ${i.ps} #️⃣${i.rowId}
 ⌛️Expires in: ♾
 ⚙️Port: ${i.port}\n\n`;
             } else if (moment(i.expiryTime).isBefore(moment.now())) {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
-👤Name: ${i.ps}
+👤Name: ${i.ps} #️⃣${i.rowId}
 ⌛️Expires in: expired!
 ⚙️Port: ${i.port}\n\n`;
             } else {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
-👤Name: ${i.ps}
+👤Name: ${i.ps} #️⃣${i.rowId}
 ⌛️Expires in: ${moment(i.expiryTime).fromNow(true)}
 ⚙️Port: ${i.port}\n\n`;
             }
@@ -479,10 +479,20 @@ bot.on("message", async (ctx) => {
             try {
                 const remark: string = ctx.message.text.split("\n")[0];
                 const ip: string = ctx.message.text.split("\n")[1];
-                const expiryTime = moment(ctx.message.text.split("\n")[2]);
+                let expiryTime: moment.Moment | null;
+                if (ctx.message.text.split("\n")[2]) {
+                    expiryTime = moment(ctx.message.text.split("\n")[2]);
+                } else {
+                    expiryTime = null;
+                }
 
-                if (remark && (/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/).test(ip) && expiryTime.isValid()) {
-                    const result = await db.addConfig(remark, ip, expiryTime.toDate());
+                if (remark && (/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/).test(ip)) {
+                    let result;
+                    if (expiryTime && expiryTime.isValid()) {
+                        result = await db.addConfig(remark, ip, expiryTime.toDate());
+                    } else if (!expiryTime) {
+                        result = await db.addConfig(remark, ip);
+                    }
 
                     if (result) {
                         ctx.reply("Config added successfully!");

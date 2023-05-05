@@ -182,7 +182,7 @@ export default class db {
         }
     }
 
-    static async addConfig(remark: string, ip: string, expiryTime: Date): Promise<addConfig | undefined> {
+    static async addConfig(remark: string, ip: string, expiryTime?: Date): Promise<addConfig | undefined> {
         const session = this.ids.find((value) => {
             if (value.ip === ip) {
                 return true;
@@ -203,7 +203,7 @@ export default class db {
         formData.append("total", "0");
         formData.append("remark", remark);
         formData.append("enable", "true");
-        formData.append("expiryTime", String(expiryTime.getTime()));
+        formData.append("expiryTime", String(expiryTime?.getTime() || ""));
         formData.append("listen", "");
         formData.append("port", String(port));
         formData.append("protocol", "vmess");

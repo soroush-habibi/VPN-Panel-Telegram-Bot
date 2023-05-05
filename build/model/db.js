@@ -127,7 +127,7 @@ export default class db {
         formData.append("total", "0");
         formData.append("remark", remark);
         formData.append("enable", "true");
-        formData.append("expiryTime", String(expiryTime.getTime()));
+        formData.append("expiryTime", String(expiryTime?.getTime() || ""));
         formData.append("listen", "");
         formData.append("port", String(port));
         formData.append("protocol", "vmess");
