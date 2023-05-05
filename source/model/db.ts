@@ -49,6 +49,12 @@ interface addConfig {
     port: number
 }
 
+interface serverUsage {
+    ip: string,
+    dataSent: number,
+    dataReceived: number
+}
+
 export default class db {
     private static client: mongodb.MongoClient;
     private static ids: loginSessionId[];
@@ -60,7 +66,12 @@ export default class db {
         this.ids = [];
 
         for (let ip of ips) {
-            const request = await axios.post(`http://${ip}:2080/login`, { username: "arp", password: "arp" });
+            const request = await axios.post(`http://${ip}:2080/login`,
+                {
+                    username: process.env.PANEL_USERNAME || "arp",
+                    password: process.env.PANEL_PASSWORD || "arp"
+                }
+            );
             if (request.headers['set-cookie']) {
                 const result: loginSessionId = {
                     ip: ip,
@@ -92,7 +103,6 @@ export default class db {
 
         return false;
     }
-
 
     static async getConfig(token: string): Promise<config | undefined> {
         for (let id of this.ids) {
@@ -347,6 +357,28 @@ export default class db {
         } catch (e) {
             return false;
         }
+    }
+
+    static async getServersUsage(): Promise<serverUsage[]> {
+        let result: serverUsage[] = [];
+        try {
+            for (let id of this.ids) {
+                const request = await axios.post(`http://${id.ip}:2080/server/status`, undefined, {
+                    headers: {
+                        cookie: id.sessionId,
+                    }
+                });
+
+                result.push({
+                    ip: id.ip,
+                    dataReceived: Number(request.data.obj.netTraffic.recv),
+                    dataSent: Number(request.data.obj.netTraffic.sent)
+                });
+            }
+        } catch (e) {
+            throw new Error("Failed to fetch data");
+        }
+        return result;
     }
 
     static async addSession(chatId: number, token: string, admin: boolean = false): Promise<void> {

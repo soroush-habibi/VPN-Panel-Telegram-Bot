@@ -3,6 +3,7 @@ import qrImage from 'qr-image';
 import moment from 'moment';
 import inquirer from 'inquirer';
 import 'dotenv/config';
+import bytes from 'bytes';
 import user from './model/user.js';
 import db from './model/db.js';
 let bot;
@@ -41,6 +42,7 @@ const adminCustomKeyboard = new grammy.Keyboard()
     .text("stats").row()
     .text("announce")
     .text("update expiry date").row()
+    .text("server usage")
     .text("log out")
     .resized();
 //!----------------------middlewares----------------------!//
@@ -280,6 +282,30 @@ bot.hears("update expiry date", (ctx) => {
     }
     else {
         ctx.reply("You dont have permission to change expiry date");
+    }
+});
+bot.hears("server usage", async (ctx) => {
+    let userObj = getChatObject(ctx.chat.id);
+    if (userObj && userObj.admin) {
+        try {
+            const result = await db.getServersUsage();
+            let data = "";
+            for (let stat of result) {
+                const send = bytes(stat.dataSent);
+                const received = bytes(stat.dataReceived);
+                ;
+                data += `🌐IP:${stat.ip}
+🔼Send: ${send}
+🔽Received: ${received}\n`;
+            }
+            ctx.reply(data);
+        }
+        catch (e) {
+            ctx.reply(e.message);
+        }
+    }
+    else {
+        ctx.reply("You dont have permission to see server usage");
     }
 });
 //!----------------------callback queries----------------------!//
