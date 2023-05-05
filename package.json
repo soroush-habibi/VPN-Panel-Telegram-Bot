@@ -5,8 +5,7 @@
   "main": "bot.js",
   "type": "module",
   "scripts": {
-    "start": "node --watch ./build/bot.js",
-    "start-api": "node --watch ./build/nodeApi/app.js"
+    "start": "node --watch ./build/bot.js"
   },
   "repository": {
     "type": "git",

@@ -1,5 +1,6 @@
 import mongodb from 'mongodb';
 import axios from 'axios';
+import crypto from 'crypto';
 export default class db {
     static async connect(func, ips) {
         const client = await mongodb.MongoClient.connect(process.env.DB_URL || "mongodb://127.0.0.1:27017");
@@ -154,12 +155,11 @@ export default class db {
             ]
           }`);
         try {
-            const request = await axios.post(`http://${session.ip}:2080/xui/inbound/add`, {
-                formData
-            }, {
-                headers: {
-                    cookie: session.sessionId,
-                }
+            const request = await axios({
+                method: "post",
+                url: `http://${session.ip}:2080/xui/inbound/add`,
+                data: formData,
+                headers: { cookie: session.sessionId }
             });
             if (request.data.success) {
                 return true;
@@ -247,12 +247,11 @@ export default class db {
             ]
           }`);
         try {
-            const request = await axios.post(`http://${session.ip}:2080/xui/inbound/update/${id}`, {
-                formData
-            }, {
-                headers: {
-                    cookie: session.sessionId,
-                }
+            const request = await axios({
+                method: "post",
+                url: `http://${session.ip}:2080/xui/inbound/update/${id}`,
+                data: formData,
+                headers: { cookie: session.sessionId }
             });
             if (request.data.success) {
                 return true;

