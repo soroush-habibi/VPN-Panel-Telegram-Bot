@@ -21,9 +21,7 @@ bot.api.setMyCommands([{
 let users = [];
 let ips = [];
 const startTime = moment().utc();
-let globalStatus = `Main server: No Issues🟢
-CDN: Minor Issues🟠
-Overall: No Issues🟢`;
+let globalStatus = `Not set!`;
 //!----------------------keyboards----------------------!//
 const customKeyboard = new grammy.Keyboard()
     .text("get config")
@@ -50,7 +48,10 @@ bot.use((ctx, next) => {
     db.connect(async (client) => {
         await next();
         client.close();
-    }, ips);
+    }, ips).catch((e) => {
+        console.log("Database connection failed.Error:\n" + e);
+        process.exit(1);
+    });
 });
 //!----------------------commands----------------------!//
 bot.command("start", (ctx) => {
@@ -287,22 +288,17 @@ bot.hears("update expiry date", (ctx) => {
 bot.hears("server usage", async (ctx) => {
     let userObj = getChatObject(ctx.chat.id);
     if (userObj && userObj.admin) {
-        try {
-            const result = await db.getServersUsage();
-            let data = "";
-            for (let stat of result) {
-                const send = bytes(stat.dataSent);
-                const received = bytes(stat.dataReceived);
-                ;
-                data += `🌐IP:${stat.ip}
+        const result = await db.getServersUsage();
+        let data = "";
+        for (let stat of result) {
+            const send = bytes(stat.dataSent);
+            const received = bytes(stat.dataReceived);
+            ;
+            data += `🌐IP:${stat.ip}
 🔼Send: ${send}
-🔽Received: ${received}\n`;
-            }
-            ctx.reply(data);
+🔽Received: ${received}\n\n`;
         }
-        catch (e) {
-            ctx.reply(e.message);
-        }
+        ctx.reply(data);
     }
     else {
         ctx.reply("You dont have permission to see server usage");
@@ -659,7 +655,18 @@ function resetStatus() {
 }
 //!----------------------error handling----------------------!//
 bot.catch((err) => {
-    console.log(err.message);
+    console.error(`Error while handling update ${err.ctx.update.update_id}:`);
+    const e = err.error;
+    if (e instanceof grammy.GrammyError) {
+        console.error("Error in request:", e.description);
+    }
+    else if (e instanceof grammy.HttpError) {
+        console.error("Could not contact Telegram:", e);
+    }
+    else {
+        console.error("Unknown error:", e);
+    }
+    err.ctx.reply("Request failed!");
 });
 //!----------------------launch----------------------!//
 inquirer.prompt([
@@ -689,5 +696,9 @@ inquirer.prompt([
         }
         client.close();
         bot.start();
-    }, ips);
+    }, ips).catch((e) => {
+        console.log("Database connection failed.Error:\n" + e);
+        process.exit(1);
+    });
+    ;
 });
