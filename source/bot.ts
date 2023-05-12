@@ -1,9 +1,10 @@
-import grammy from 'grammy';
+import grammy, { InlineKeyboard } from 'grammy';
 import qrImage from 'qr-image';
 import moment from 'moment';
 import inquirer from 'inquirer';
 import 'dotenv/config';
 import bytes from 'bytes';
+import axios from 'axios';
 
 import user from './model/user.js';
 import db from './model/db.js';
@@ -19,6 +20,8 @@ bot.api.setMyCommands([{
     command: "start", description: "login with token"
 }, {
     command: "cancel", description: "cancel operation"
+}, {
+    command: "buy", description: "buy subscription"
 }]);
 
 let users: user[] = [];
@@ -104,6 +107,16 @@ bot.command("answer", async (ctx) => {
     } else {
         ctx.reply("You dont have permission to answer a ticket!");
     }
+});
+
+bot.command("buy", async (ctx) => {
+    const inlineKeyboard = new grammy.InlineKeyboard()
+        .text("1 month", "BS1")
+        .text("3 month", "BS3");
+
+    ctx.reply(`<b>Subscription prices:</b>
+1 month: 2$
+3 month: 5$`, { parse_mode: 'HTML', reply_markup: inlineKeyboard });
 });
 
 bot.command("cancel", (ctx) => {
@@ -452,6 +465,101 @@ bot.callbackQuery(/page(\d)+ (.)+/, async (ctx) => {
         ctx.editMessageText(`📜Page${page} is empty!`, { reply_markup: pagination });
     }
     ctx.answerCallbackQuery();
+});
+
+bot.callbackQuery(/BS(\d)+/, async (ctx) => {
+    const time = Number(ctx.callbackQuery.data.slice(2));
+    let amount: number = 0;
+
+    if (time === 1) {
+        amount = 2;
+    } else if (time === 3) {
+        amount = 5;
+    }
+
+    axios({
+        method: 'post',
+        url: 'https://api.commerce.coinbase.com/charges',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CC-Api-Key': process.env.COINBASE_API_KEY
+        },
+        data: {
+            "name": "VPN payment",
+            "description": "buy subscription",
+            "pricing_type": "fixed_price",
+            "local_price": {
+                "amount": String(amount),
+                "currency": "USD",
+            }
+        }
+    }).then(async (response) => {
+        ctx.reply("After you pay click on second button.link will expire in 1 hour!", {
+            reply_markup: new InlineKeyboard()
+                .url("Payment gateway", response.data.data.hosted_url)
+                .text("I paid!", String(time) + response.data.hosted_url)
+        });
+        await ctx.answerCallbackQuery();
+    }).catch(async (e) => {
+        ctx.reply("Request failed!");
+        await ctx.answerCallbackQuery();
+    });
+});
+
+bot.callbackQuery(/\d{1}https:\/\/commerce.coinbase.com(.+)/, (ctx) => {
+    const url = ctx.callbackQuery.data.slice(1);
+    const time = Number(ctx.callbackQuery.data[0]);
+
+    axios({
+        method: 'get',
+        url: url,
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CC-Api-Key': process.env.COINBASE_API_KEY
+        }
+    }).then(async (response) => {
+        const timeline = response.data.data.timeline
+
+        if (timeline[1].status == 'PEDNING' && timeline.length == 2) {
+            ctx.reply("Not paid!");
+        } else if (timeline[1].status == 'EXPIRED') {
+            ctx.reply("Expired!");
+        } else if (timeline[2].status == 'COMPLETED') {
+            //todo:send config
+            const endTime = Date.now() + (1000 * 60 * 60 * 24 * 30 * time);
+            const ranIp = ips[Math.floor(Math.random() * ips.length)];
+            const result = await db.addConfig(String(ctx.chat?.id || "chatId unknown"), ranIp, new Date(endTime));
+
+            if (result) {
+                const resultConfig = {
+                    add: ranIp,
+                    aid: "0",
+                    host: "",
+                    id: result.token,
+                    net: "ws",
+                    path: "/",
+                    port: String(result.port),
+                    ps: ctx.chat?.id || "chatId unknown",
+                    scy: "auto",
+                    sni: "",
+                    tls: "",
+                    type: "none",
+                    v: "2"
+                }
+
+                ctx.reply("vmess://" + Buffer.from(JSON.stringify(resultConfig), 'utf-8').toString("base64"));
+            } else {
+                ctx.reply("Request failed. please contact support and send payment id!");
+            }
+        }
+
+        await ctx.answerCallbackQuery();
+    }).catch(async (e) => {
+        ctx.reply("Request failed!");
+        await ctx.answerCallbackQuery();
+    })
 });
 
 //!----------------------events----------------------!//

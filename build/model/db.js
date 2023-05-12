@@ -7,7 +7,7 @@ export default class db {
         this.client = client;
         this.ids = [];
         for (let ip of ips) {
-            const request = await axios.post(`http://${ip}:2080/login`, {
+            const request = await axios.post(`http://${ip}:${process.env.PANEL_PORT || 2080}/login`, {
                 username: process.env.PANEL_USERNAME || "arp",
                 password: process.env.PANEL_PASSWORD || "arp"
             });
@@ -23,7 +23,7 @@ export default class db {
     }
     static async checkConfig(token) {
         for (let id of this.ids) {
-            const request = await axios.post(`http://${id.ip}:2080/xui/inbound/list`, undefined, {
+            const request = await axios.post(`http://${id.ip}:${process.env.PANEL_PORT || 2080}/xui/inbound/list`, undefined, {
                 headers: {
                     cookie: id.sessionId,
                 }
@@ -39,7 +39,7 @@ export default class db {
     }
     static async getConfig(token) {
         for (let id of this.ids) {
-            const request = await axios.post(`http://${id.ip}:2080/xui/inbound/list`, undefined, {
+            const request = await axios.post(`http://${id.ip}:${process.env.PANEL_PORT || 2080}/xui/inbound/list`, undefined, {
                 headers: {
                     cookie: id.sessionId,
                 }
@@ -79,7 +79,7 @@ export default class db {
         if (!session) {
             throw new Error("IP is not valid!");
         }
-        const request = await axios.post(`http://${ip}:2080/xui/inbound/list`, undefined, {
+        const request = await axios.post(`http://${ip}:${process.env.PANEL_PORT || 2080}/xui/inbound/list`, undefined, {
             headers: {
                 cookie: session.sessionId,
             }
@@ -161,7 +161,7 @@ export default class db {
         try {
             const request = await axios({
                 method: "post",
-                url: `http://${session.ip}:2080/xui/inbound/add`,
+                url: `http://${session.ip}:${process.env.PANEL_PORT || 2080}/xui/inbound/add`,
                 data: formData,
                 headers: { cookie: session.sessionId }
             });
@@ -186,7 +186,7 @@ export default class db {
             throw new Error("IP is not valid!");
         }
         try {
-            const request = await axios.post(`http://${session.ip}:2080/xui/inbound/del/${id}`, undefined, {
+            const request = await axios.post(`http://${session.ip}:${process.env.PANEL_PORT || 2080}/xui/inbound/del/${id}`, undefined, {
                 headers: {
                     cookie: session.sessionId,
                 }
@@ -253,7 +253,7 @@ export default class db {
         try {
             const request = await axios({
                 method: "post",
-                url: `http://${session.ip}:2080/xui/inbound/update/${id}`,
+                url: `http://${session.ip}:${process.env.PANEL_PORT || 2080}/xui/inbound/update/${id}`,
                 data: formData,
                 headers: { cookie: session.sessionId }
             });
@@ -272,7 +272,7 @@ export default class db {
         let result = [];
         try {
             for (let id of this.ids) {
-                const request = await axios.post(`http://${id.ip}:2080/server/status`, undefined, {
+                const request = await axios.post(`http://${id.ip}:${process.env.PANEL_PORT || 2080}/server/status`, undefined, {
                     headers: {
                         cookie: id.sessionId,
                     }
