@@ -495,10 +495,10 @@ bot.callbackQuery(/BS(\d)+/, async (ctx) => {
             }
         }
     }).then(async (response) => {
-        ctx.reply("After you pay click on second button.link will expire in 1 hour!", {
+        ctx.reply("After you pay click on second button. link will expire in 1 hour!", {
             reply_markup: new InlineKeyboard()
                 .url("Payment gateway", response.data.data.hosted_url)
-                .text("I paid!", String(time) + response.data.hosted_url)
+                .text("I paid!", String(time) + response.data.data.hosted_url)
         });
         await ctx.answerCallbackQuery();
     }).catch(async (e) => {
@@ -508,7 +508,7 @@ bot.callbackQuery(/BS(\d)+/, async (ctx) => {
 });
 
 bot.callbackQuery(/\d{1}https:\/\/commerce.coinbase.com(.+)/, (ctx) => {
-    const url = ctx.callbackQuery.data.slice(1);
+    const url = ctx.callbackQuery.data.slice(1).split("").splice(8, 0, "api.").join();
     const time = Number(ctx.callbackQuery.data[0]);
 
     axios({
@@ -520,17 +520,20 @@ bot.callbackQuery(/\d{1}https:\/\/commerce.coinbase.com(.+)/, (ctx) => {
             'X-CC-Api-Key': process.env.COINBASE_API_KEY
         }
     }).then(async (response) => {
-        const timeline = response.data.data.timeline
+        const timeline = response.data.data.timeline;
 
-        if (timeline[1].status == 'PEDNING' && timeline.length == 2) {
+        if (timeline[0].status == 'NEW' && timeline.length == 1) {
             ctx.reply("Not paid!");
+        } else if (timeline[1].status == 'PEDNING' && timeline.length == 2) {
+            ctx.reply("Processing payment. please wait...");
         } else if (timeline[1].status == 'EXPIRED') {
             ctx.reply("Expired!");
         } else if (timeline[2].status == 'COMPLETED') {
             //todo:send config
             const endTime = Date.now() + (1000 * 60 * 60 * 24 * 30 * time);
             const ranIp = ips[Math.floor(Math.random() * ips.length)];
-            const result = await db.addConfig(String(ctx.chat?.id || "chatId unknown"), ranIp, new Date(endTime));
+            const remark = String(ctx.chat?.id || "chatId unknown")
+            const result = await db.addConfig(remark, ranIp, new Date(endTime));
 
             if (result) {
                 const resultConfig = {
@@ -541,7 +544,7 @@ bot.callbackQuery(/\d{1}https:\/\/commerce.coinbase.com(.+)/, (ctx) => {
                     net: "ws",
                     path: "/",
                     port: String(result.port),
-                    ps: ctx.chat?.id || "chatId unknown",
+                    ps: remark,
                     scy: "auto",
                     sni: "",
                     tls: "",
@@ -550,6 +553,8 @@ bot.callbackQuery(/\d{1}https:\/\/commerce.coinbase.com(.+)/, (ctx) => {
                 }
 
                 ctx.reply("vmess://" + Buffer.from(JSON.stringify(resultConfig), 'utf-8').toString("base64"));
+                if (ctx.chat && ctx.message)
+                    ctx.api.deleteMessage(ctx.chat.id, ctx.message?.message_id);
             } else {
                 ctx.reply("Request failed. please contact support and send payment id!");
             }
