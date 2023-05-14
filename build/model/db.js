@@ -21,6 +21,9 @@ export default class db {
         }
         func(client);
     }
+    static async init() {
+        await this.client.db("vpnBot").collection("statistics").updateOne({}, { $set: { config_clicks: 0, qr_clicks: 0 } }, { upsert: true });
+    }
     static async checkConfig(token) {
         for (let id of this.ids) {
             const request = await axios.post(`http://${id.ip}:${process.env.PANEL_PORT || 2080}/xui/inbound/list`, undefined, {
